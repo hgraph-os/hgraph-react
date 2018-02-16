@@ -1,0 +1,32 @@
+{
+  "name": "hgraph-react",
+  "version": "0.0.1",
+  "description": "A React component using d3 peer dependency to build hGraph, a visualization for patient health data.",
+  "main": "build/index.js",
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "react": "^16.2.0"
+  },
+  "dependencies": {
+    "react": "^16.2.0",
+    "webpack": "^3.11.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "webpack --watch",
+    "build": "webpack",
+    "prepublish": "yarn run build"
+  },
+  "author": {
+    "name": "Craig McGinley",
+    "email": "craig@goinvo.com"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.24.1",
+    "babel-core": "^6.24.1",
+    "babel-loader": "^7.0.0",
+    "babel-plugin-transform-object-rest-spread": "^6.23.0",
+    "babel-plugin-transform-react-jsx": "^6.24.1",
+    "babel-preset-env": "^1.5.1"
+  }
+}
