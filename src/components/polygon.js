@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { easeExp } from 'd3-ease';
 import Animate from 'react-move/Animate';
 import NodeGroup from 'react-move/NodeGroup';
+import Text from 'react-svg-text';
 
 class Polygon extends Component {
 
@@ -14,7 +15,7 @@ class Polygon extends Component {
       cy: PropTypes.number.isRequired,
       activeCx: PropTypes.number.isRequired,
       activeCy: PropTypes.number.isRequired,
-      activeText: PropTypes.string.isRequired,
+      unit: PropTypes.string.isRequired
     })).isRequired,
     color: PropTypes.string,
     areaOpacity: PropTypes.number,
@@ -61,11 +62,11 @@ class Polygon extends Component {
       <Animate
         start={{
           pointsStr: pointsStr,
-          fillOpacity: this.props.isActive ? .7 : this.props.areaOpacity
+          fillOpacity: this.props.isActive ? this.props.areaOpacityActive : this.props.areaOpacity
         }}
         enter={{
           pointsStr: pointsStr,
-          fillOpacity: this.props.isActive ? .7 : this.props.areaOpacity
+          fillOpacity: this.props.isActive ? this.props.areaOpacityActive : this.props.areaOpacity
         }}
         update={[
           {
@@ -73,7 +74,7 @@ class Polygon extends Component {
             timing: { duration: 750, ease: easeExp }
           },
           {
-            fillOpacity: [this.props.isActive ? .7 : this.props.areaOpacity],
+            fillOpacity: [this.props.isActive ? this.props.areaOpacityActive : this.props.areaOpacity],
             timing: { duration: 250, ease: easeExp }
           }
         ]}
@@ -108,6 +109,7 @@ class Polygon extends Component {
             activeCy: d.activeCy,
             pointRadius: this.props.pointRadius,
             color: d.color || this.props.color,
+            textColor: d.textColor,
             activeOpacity: this.props.isActive ? 1 : 0
           })}
           enter={(d, index) => ({
@@ -117,6 +119,7 @@ class Polygon extends Component {
             activeCy: d.activeCy,
             pointRadius: this.props.pointRadius,
             color: d.color || this.props.color,
+            textColor: d.textColor,
             activeOpacity: this.props.isActive ? 1 : 0
           })}
           update={(d, index) => ([
@@ -127,6 +130,7 @@ class Polygon extends Component {
               activeCy: [d.activeCy],
               pointRadius: [this.props.pointRadius],
               color: [d.color || this.props.color],
+              textColor: [d.textColor],
               timing: { duration: 750, ease: easeExp }
             },
             {
@@ -149,29 +153,15 @@ class Polygon extends Component {
                         fill={ state.color }>
                       </circle>
                       <g opacity={ state.activeOpacity } className="polygon__active-point-wrapper">
-                        <circle
-                          r={ this.props.activePointRadius }
-                          cx={ state.activeCx }
-                          cy={ state.activeCy }
-                          fill={ state.color }>
-                        </circle>
-                        <text
+                        <Text
                           x={ state.activeCx }
                           y={ state.activeCy }
-                          fontSize="20px"
-                          fill="#fff">
-                          <tspan
-                            alignmentBaseline="middle"
-                            textAnchor="middle">
-                            { data.activeText }
-                          </tspan>
-                          <tspan
-                            alignmentBaseline="middle"
-                            textAnchor="middle"
-                            fontSize="10px">
-                            %
-                          </tspan>
-                        </text>
+                          fontSize={ this.props.textSize }
+                          verticalAnchor={ data.verticalAnchor }
+                          textAnchor={ data.textAnchor }
+                          fill={ state.textColor }>
+                          { `${data.value} ${data.unit}` }
+                        </Text>
                       </g>
                     </g>
                   )

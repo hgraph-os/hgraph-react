@@ -11,7 +11,6 @@ class HGraph extends Component {
   static propTypes = {
     data: PropTypes.arrayOf(PropTypes.shape({
       id: PropTypes.string.isRequired,
-      color: PropTypes.string.isRequired,
       values: PropTypes.arrayOf(PropTypes.shape({
         label: PropTypes.string.isRequired,
         value: PropTypes.number.isRequired,
@@ -19,9 +18,10 @@ class HGraph extends Component {
         healthyMax: PropTypes.number.isRequired,
         absoluteMin: PropTypes.number.isRequired,
         absoluteMax: PropTypes.number.isRequired,
-        units: PropTypes.string.isRequired
+        unit: PropTypes.string.isRequired
       })),
-      score: PropTypes.number.isRequired
+      score: PropTypes.number.isRequired,
+      color: PropTypes.string
     })),
     width: PropTypes.number,
     height: PropTypes.number,
@@ -41,29 +41,32 @@ class HGraph extends Component {
     highlight: PropTypes.bool,
     highlightStrokeColor: PropTypes.string,
     areaOpacity: PropTypes.number,
+    areaOpacityActive: PropTypes.number,
     pointRadius: PropTypes.number,
-    // TODO: Return to activePoint stuffs
+    textColor: PropTypes.string,
     activePointOffset: PropTypes.number,
     scoreEnabled: PropTypes.bool,
   };
 
   static defaultProps = {
-    width: 500,
-    height: 500,
-    margin: { top: 50, right: 50, bottom: 50, left: 50 },
+    width: 600,
+    height: 600,
+    margin: { top: 70, right: 100, bottom: 70, left: 100 },
     absoluteMin: 0,
     absoluteMax: 1,
     thresholdMin: .25,
     thresholdMax: .75,
     axisLabel: true,
     axisLabelOffset: 1.1,
-    axisLabelWrapWidth: 60,
+    axisLabelWrapWidth: 80,
     highlight: false,
     highlightStrokeColor: '#8F85FF',
-    areaOpacity: 0.5,
+    areaOpacity: 0.25,
+    areaOpacityActive: 0.6,
     pointRadius: 10,
-    // TODO: Return to activePoint stuffs
-    activePointOffset: 0.025,
+    activePointOffset: 0.1,
+    textColor: '#000',
+    textSize: '16px',
     scoreEnabled: true,
   }
 
@@ -76,6 +79,7 @@ class HGraph extends Component {
     };
 
     this.Format = format('.0%');
+    this.defaultColor = '#616363';
 
     if (props.data) {
       this.initConfig(props);
@@ -139,23 +143,62 @@ class HGraph extends Component {
   }
 
   assemblePointsData = (data) => {
+    const heightRange = this.props.height / 6;
+    const widthRange = this.props.width * .1;
+
     return data.values.map((val, i) => {
+      // TODO: Ugh, clean this up at some point
+      const cos = Math.cos(this.angleSlice * i - Math.PI / 2);
+      const sin = Math.sin(this.angleSlice * i - Math.PI / 2);
+
       const percentageFromValue = this.convertValueToHgraphPercentage(val);
+      const isAboveMidPoint = percentageFromValue > (this.props.thresholdMax - this.props.thresholdMin);
+      const isUnhealthilyHigh = percentageFromValue > this.props.thresholdMax;
+
+      const cx = this.scaleRadial(percentageFromValue) * cos;
+      const cy = this.scaleRadial(percentageFromValue) * sin;
+
+      const labelShouldRenderInside = isUnhealthilyHigh || (isAboveMidPoint && cy < heightRange && cy > -heightRange);
+
+      const activeOffset = labelShouldRenderInside ? -this.props.activePointOffset : this.props.activePointOffset;
+      const activeVal = parseFloat(percentageFromValue) + activeOffset;
+      const activeCx = this.scaleRadial(activeVal) * cos;
+      const activeCy = this.scaleRadial(activeVal) * sin;
+
+      const textAnchor =
+        labelShouldRenderInside && cx < widthRange && cx > -widthRange ? 'middle' :
+        labelShouldRenderInside && cx < -widthRange ? 'start' :
+        labelShouldRenderInside && cx > widthRange ? 'end' :
+        cx < -widthRange ? 'end' :
+        cx > widthRange ? 'start' :
+        'middle';
+
+      const verticalAnchor =
+        labelShouldRenderInside && cy < heightRange ? 'start' :
+        labelShouldRenderInside && cy > heightRange ? 'end' :
+        labelShouldRenderInside ? 'middle' :
+        cy < heightRange ? 'end' :
+        cy > heightRange ? 'start' :
+        'middle';
+
       return {
         key: val.label.replace(/\s/g,''),
         value: val.value,
-        cx: this.scaleRadial(percentageFromValue) * Math.cos(this.angleSlice * i - Math.PI / 2),
-        cy: this.scaleRadial(percentageFromValue) * Math.sin(this.angleSlice * i - Math.PI / 2),
-        activeCx: this.scaleRadial(parseFloat(percentageFromValue) + this.props.activePointOffset) * Math.cos(this.angleSlice * i - Math.PI / 2),
-        activeCy: this.scaleRadial(parseFloat(percentageFromValue) + this.props.activePointOffset) * Math.sin(this.angleSlice * i - Math.PI / 2),
+        cx,
+        cy,
+        activeCx,
+        activeCy,
         color: this.thresholdColor(percentageFromValue, data.color),
-        activeText: this.Format(percentageFromValue).slice(0, -1)
+        textColor: this.thresholdColor(percentageFromValue, this.props.textColor),
+        unit: val.unit,
+        textAnchor,
+        verticalAnchor
       };
     });
   }
 
   thresholdColor = (value, color) => {
-    return (value < this.props.thresholdMin || value > this.props.thresholdMax) ? '#e1604f' : color;
+    return (value < this.props.thresholdMin || value > this.props.thresholdMax) ? '#df6053' : color;
   }
 
   renderThreshold = () => {
@@ -165,6 +208,7 @@ class HGraph extends Component {
       .innerRadius(this.scaleRadial(this.props.thresholdMin))
       .startAngle(0)
       .endAngle(tau);
+    // NOTE: totalArc just here for dev purposes for now
     const totalArc = arc()
       .outerRadius(this.scaleRadial(0))
       .innerRadius(this.scaleRadial(1))
@@ -172,15 +216,16 @@ class HGraph extends Component {
       .endAngle(tau);
     return (
       <g>
-        <path
+        { /* NOTE: totalArc just here for dev purposes for now */ }
+        {/* <path
           d={ totalArc() }
           fill={'#000' }
           fillOpacity=".05">
-        </path>
+        </path> */}
         <path
           d={ healthyArc() }
-          fill={ this.props.highlight ? this.props.highlightStrokeColor : '#97be8c' }
-          fillOpacity=".75">
+          fill={ this.props.highlight ? this.props.highlightStrokeColor : '#98bd8e' }
+          fillOpacity="1">
         </path>
       </g>
     )
@@ -190,19 +235,24 @@ class HGraph extends Component {
     return (
       <g>
         {this.allAxis.map((axis, i) => {
+          const x = this.scaleRadial(this.absoluteMax * this.props.axisLabelOffset) * Math.cos(this.angleSlice * i - Math.PI / 2);
+          const y = this.scaleRadial(this.absoluteMax * this.props.axisLabelOffset) * Math.sin(this.angleSlice * i - Math.PI / 2);
           return (
             <g key={ axis }>
               {
                 this.props.axisLabel ?
-                  <Text
-                    x={ this.scaleRadial(this.absoluteMax * this.props.labelOffset) * Math.cos(this.angleSlice * i - Math.PI / 2) }
-                    y={ this.scaleRadial(this.absoluteMax * this.props.labelOffset) * Math.sin(this.angleSlice * i - Math.PI / 2) }
-                    dy=".35em"
-                    fontSize="12px"
-                    textAnchor="middle"
-                    width={ this.props.axisLabelWrapWidth }>
-                    { axis }
-                  </Text>
+                  <g>
+                    <Text
+                      x={ x }
+                      y={ y }
+                      fontSize={ this.props.textSize }
+                      verticalAnchor={ y > 100 ? "start" : y < 100 ? "end" : "middle" }
+                      textAnchor={ x > 10 ? "start" : x < -10 ? "end" : "middle" }
+                      width={ this.props.axisLabelWrapWidth }
+                      fill={ this.props.textColor }>
+                      { axis }
+                    </Text>
+                  </g>
                 : null
               }
             </g>
@@ -243,9 +293,10 @@ class HGraph extends Component {
                     return (
                       <Polygon
                         key={ d.id }
-                        color={ d.color }
+                        color={ d.color || this.defaultColor }
                         points={ this.assemblePointsData(d) }
                         areaOpacity={ this.props.areaOpacity }
+                        areaOpacityActive={ this.props.areaOpacityActive }
                         strokeWidth={ 0 }
                         pointRadius={ this.props.pointRadius }
                         scoreEnabled={ true }
@@ -253,6 +304,7 @@ class HGraph extends Component {
                         showScore={ this.props.scoreEnabled && (sortedData.length === 1 || d.id === this.state.activeNodeId) }
                         scoreSize={ this.props.scoreSize }
                         scoreColor={ this.props.scoreColor }
+                        textSize={ this.props.textSize }
                         isActive={ d.id === this.state.activeNodeId }
                         onClick={ this.handlePolygonClick(d) }
                       />
