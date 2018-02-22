@@ -35,17 +35,19 @@ class HGraph extends Component {
     absoluteMax: PropTypes.number,
     thresholdMin: PropTypes.number,
     thresholdMax: PropTypes.number,
-    axisLabel: PropTypes.bool,
+    healthyRangeFillColor: PropTypes.string,
+    fontSize: PropTypes.string,
+    fontColor: PropTypes.string,
+    showAxisLabel: PropTypes.bool,
     axisLabelOffset: PropTypes.number,
     axisLabelWrapWidth: PropTypes.number,
-    highlight: PropTypes.bool,
-    highlightStrokeColor: PropTypes.string,
     areaOpacity: PropTypes.number,
     areaOpacityActive: PropTypes.number,
     pointRadius: PropTypes.number,
-    textColor: PropTypes.string,
-    activePointOffset: PropTypes.number,
-    scoreEnabled: PropTypes.bool,
+    pointLabelOffset: PropTypes.number,
+    pointLabelWrapWidth: PropTypes.number,
+    showScore: PropTypes.bool,
+    scoreFontSize: PropTypes.string
   };
 
   static defaultProps = {
@@ -56,18 +58,19 @@ class HGraph extends Component {
     absoluteMax: 1,
     thresholdMin: .25,
     thresholdMax: .75,
-    axisLabel: true,
+    healthyRangeFillColor: '#98bd8e',
+    fontSize: '16px',
+    fontColor: '#000',
+    showAxisLabel: true,
     axisLabelOffset: 1.1,
     axisLabelWrapWidth: 80,
-    highlight: false,
-    highlightStrokeColor: '#8F85FF',
     areaOpacity: 0.25,
     areaOpacityActive: 0.6,
     pointRadius: 10,
-    activePointOffset: 0.1,
-    textColor: '#000',
-    textSize: '16px',
-    scoreEnabled: true,
+    pointLabelOffset: 0.1,
+    pointLabelWrapWidth: null,
+    showScore: true,
+    scoreFontSize: '120px'
   }
 
   constructor(props) {
@@ -118,7 +121,25 @@ class HGraph extends Component {
     const { value, healthyMin, healthyMax, absoluteMin, absoluteMax } = valueObject;
     let scale;
 
-    if (value < healthyMin) {
+    // Do some error checking
+    if (value < absoluteMin || value > absoluteMax) {
+      throw "Value is outside permitted absolute range.";
+    } else if (absoluteMin > absoluteMax) {
+      throw "absoluteMin is higher than absoluteMax."
+    } else if (
+      healthyMin < absoluteMin ||
+      healthyMax < absoluteMin ||
+      healthyMax > absoluteMax ||
+      healthyMin > absoluteMax) {
+      throw "Healthy range extends outside of absolute range."
+    }
+
+    if (healthyMin === healthyMax && value === healthyMax) {
+      // Possible rare case where only healthy "range" is a single value
+      // and the value is healthy
+      return this.props.thresholdMax - this.props.thresholdMin;
+    }
+    else if (value < healthyMin) {
       scale = scaleLinear()
         .domain([absoluteMin, healthyMin])
         .range([this.props.absoluteMin, this.props.thresholdMin]);
@@ -160,10 +181,10 @@ class HGraph extends Component {
 
       const labelShouldRenderInside = isUnhealthilyHigh || (isAboveMidPoint && cy < heightRange && cy > -heightRange);
 
-      const activeOffset = labelShouldRenderInside ? -this.props.activePointOffset : this.props.activePointOffset;
-      const activeVal = parseFloat(percentageFromValue) + activeOffset;
-      const activeCx = this.scaleRadial(activeVal) * cos;
-      const activeCy = this.scaleRadial(activeVal) * sin;
+      const labelOffset = labelShouldRenderInside ? -this.props.pointLabelOffset : this.props.pointLabelOffset;
+      const labelPosition = parseFloat(percentageFromValue) + labelOffset;
+      const activeCx = this.scaleRadial(labelPosition) * cos;
+      const activeCy = this.scaleRadial(labelPosition) * sin;
 
       const textAnchor =
         labelShouldRenderInside && cx < widthRange && cx > -widthRange ? 'middle' :
@@ -189,7 +210,7 @@ class HGraph extends Component {
         activeCx,
         activeCy,
         color: this.thresholdColor(percentageFromValue, data.color),
-        textColor: this.thresholdColor(percentageFromValue, this.props.textColor),
+        fontColor: this.thresholdColor(percentageFromValue, this.props.fontColor),
         unit: val.unit,
         textAnchor,
         verticalAnchor
@@ -224,7 +245,7 @@ class HGraph extends Component {
         </path> */}
         <path
           d={ healthyArc() }
-          fill={ this.props.highlight ? this.props.highlightStrokeColor : '#98bd8e' }
+          fill={ this.props.healthyRangeFillColor }
           fillOpacity="1">
         </path>
       </g>
@@ -239,22 +260,16 @@ class HGraph extends Component {
           const y = this.scaleRadial(this.absoluteMax * this.props.axisLabelOffset) * Math.sin(this.angleSlice * i - Math.PI / 2);
           return (
             <g key={ axis }>
-              {
-                this.props.axisLabel ?
-                  <g>
-                    <Text
-                      x={ x }
-                      y={ y }
-                      fontSize={ this.props.textSize }
-                      verticalAnchor={ y > 100 ? "start" : y < 100 ? "end" : "middle" }
-                      textAnchor={ x > 10 ? "start" : x < -10 ? "end" : "middle" }
-                      width={ this.props.axisLabelWrapWidth }
-                      fill={ this.props.textColor }>
-                      { axis }
-                    </Text>
-                  </g>
-                : null
-              }
+              <Text
+                x={ x }
+                y={ y }
+                fontSize={ this.props.fontSize }
+                verticalAnchor={ y > 100 ? "start" : y < 100 ? "end" : "middle" }
+                textAnchor={ x > 10 ? "start" : x < -10 ? "end" : "middle" }
+                width={ this.props.axisLabelWrapWidth }
+                fill={ this.props.fontColor }>
+                { axis }
+              </Text>
             </g>
           )
         })}
@@ -266,7 +281,7 @@ class HGraph extends Component {
     return (
       <g>
         { this.renderThreshold() }
-        { this.props.axisLabel ? this.renderAxisLabels() : null }
+        { this.props.showAxisLabel ? this.renderAxisLabels() : null }
       </g>
     )
   }
@@ -299,12 +314,12 @@ class HGraph extends Component {
                         areaOpacityActive={ this.props.areaOpacityActive }
                         strokeWidth={ 0 }
                         pointRadius={ this.props.pointRadius }
-                        scoreEnabled={ true }
                         score={ d.score }
-                        showScore={ this.props.scoreEnabled && (sortedData.length === 1 || d.id === this.state.activeNodeId) }
-                        scoreSize={ this.props.scoreSize }
-                        scoreColor={ this.props.scoreColor }
-                        textSize={ this.props.textSize }
+                        showScore={ this.props.showScore && (sortedData.length === 1 || d.id === this.state.activeNodeId) }
+                        scoreFontSize={ this.props.scoreFontSize }
+                        scoreFontColor={ this.props.scoreColor }
+                        fontSize={ this.props.fontSize }
+                        pointLabelWrapWidth={ this.props.pointLabelWrapWidth }
                         isActive={ d.id === this.state.activeNodeId }
                         onClick={ this.handlePolygonClick(d) }
                       />

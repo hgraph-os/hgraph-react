@@ -23,7 +23,6 @@ class Polygon extends Component {
     strokeColor: PropTypes.string,
     pointRadius: PropTypes.number,
     activePointRadius: PropTypes.number,
-    scoreEnabled: PropTypes.bool,
     showScore: PropTypes.bool,
     scorecolor: PropTypes.string,
     scoreSize: PropTypes.string,
@@ -36,7 +35,6 @@ class Polygon extends Component {
     strokeWidth: 1,
     pointRadius: 4,
     activePointRadius: 20,
-    scoreEnabled: false,
     showScore: false,
     scoreColor: '#000',
     scoreSize: "80px",
@@ -109,7 +107,7 @@ class Polygon extends Component {
             activeCy: d.activeCy,
             pointRadius: this.props.pointRadius,
             color: d.color || this.props.color,
-            textColor: d.textColor,
+            fontColor: d.fontColor,
             activeOpacity: this.props.isActive ? 1 : 0
           })}
           enter={(d, index) => ({
@@ -119,7 +117,7 @@ class Polygon extends Component {
             activeCy: d.activeCy,
             pointRadius: this.props.pointRadius,
             color: d.color || this.props.color,
-            textColor: d.textColor,
+            fontColor: d.fontColor,
             activeOpacity: this.props.isActive ? 1 : 0
           })}
           update={(d, index) => ([
@@ -130,7 +128,7 @@ class Polygon extends Component {
               activeCy: [d.activeCy],
               pointRadius: [this.props.pointRadius],
               color: [d.color || this.props.color],
-              textColor: [d.textColor],
+              fontColor: [d.fontColor],
               timing: { duration: 750, ease: easeExp }
             },
             {
@@ -154,12 +152,13 @@ class Polygon extends Component {
                       </circle>
                       <g opacity={ state.activeOpacity } className="polygon__active-point-wrapper">
                         <Text
+                          width={ this.props.pointLabelWrapWidth }
                           x={ state.activeCx }
                           y={ state.activeCy }
-                          fontSize={ this.props.textSize }
+                          fontSize={ this.props.fontSize }
                           verticalAnchor={ data.verticalAnchor }
                           textAnchor={ data.textAnchor }
-                          fill={ state.textColor }>
+                          fill={ state.fontColor }>
                           { `${data.value} ${data.unit}` }
                         </Text>
                       </g>
@@ -176,7 +175,7 @@ class Polygon extends Component {
 
   renderScore = () => {
     const transitionObj = {
-      opacity: [this.props.showScore ? 1 : this.props.isActive ? 1 : 0],
+      opacity: [this.props.showScore ? 1 : 0],
       timing: { duration: 250, ease: easeExp }
     };
     return (
@@ -188,18 +187,18 @@ class Polygon extends Component {
       >
         {(state) => {
           return (
-            <text
+            <Text
               opacity={ state.opacity }
               x="0"
               y="0"
-              dy={ parseInt(parseInt(this.props.scoreSize, 10) / 2.5, 10) + "px" }
               textAnchor="middle"
-              fontSize={ this.props.scoreSize }
+              verticalAnchor="middle"
+              fontSize={ this.props.scoreFontSize }
               fontWeight="bold"
               pointerEvents="none"
-              fill={ this.props.scoreColor }>
+              fill={ this.props.scoreFontColor }>
                 { this.props.score }
-            </text>
+            </Text>
           )
         }}
       </Animate>
@@ -211,7 +210,7 @@ class Polygon extends Component {
       <g className="polygon-wrapper">
         { this.renderArea() }
         { this.renderPoints(this.props.points) }
-        { this.props.scoreEnabled ? this.renderScore() : null }
+        { this.renderScore() }
       </g>
     )
   }
