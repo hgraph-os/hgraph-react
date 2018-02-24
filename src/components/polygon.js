@@ -15,7 +15,7 @@ class Polygon extends Component {
       cy: PropTypes.number.isRequired,
       activeCx: PropTypes.number.isRequired,
       activeCy: PropTypes.number.isRequired,
-      unit: PropTypes.string.isRequired
+      unitLabel: PropTypes.string.isRequired
     })).isRequired,
     color: PropTypes.string,
     areaOpacity: PropTypes.number,
@@ -159,7 +159,7 @@ class Polygon extends Component {
                           verticalAnchor={ data.verticalAnchor }
                           textAnchor={ data.textAnchor }
                           fill={ state.fontColor }>
-                          { `${data.value} ${data.unit}` }
+                          { `${data.value} ${data.unitLabel}` }
                         </Text>
                       </g>
                     </g>
