@@ -3,6 +3,8 @@ import PropTypes from 'prop-types';
 import { arc } from 'd3-shape';
 import { format } from 'd3-format';
 import { scaleLinear } from 'd3-scale';
+import { easeExp } from 'd3-ease';
+import Animate from 'react-move/Animate';
 import Text from 'react-svg-text';
 
 import Polygon from './polygon';
@@ -36,7 +38,7 @@ class HGraph extends Component {
     thresholdMin: PropTypes.number,
     thresholdMax: PropTypes.number,
     healthyRangeFillColor: PropTypes.string,
-    fontSize: PropTypes.string,
+    fontSize: PropTypes.number,
     fontColor: PropTypes.string,
     showAxisLabel: PropTypes.bool,
     axisLabelOffset: PropTypes.number,
@@ -47,7 +49,8 @@ class HGraph extends Component {
     pointLabelOffset: PropTypes.number,
     pointLabelWrapWidth: PropTypes.number,
     showScore: PropTypes.bool,
-    scoreFontSize: PropTypes.string
+    scoreFontSize: PropTypes.number,
+    zoomFactor: PropTypes.number
   };
 
   static defaultProps = {
@@ -59,7 +62,7 @@ class HGraph extends Component {
     thresholdMin: .25,
     thresholdMax: .75,
     healthyRangeFillColor: '#98bd8e',
-    fontSize: '16px',
+    fontSize: 16,
     fontColor: '#000',
     showAxisLabel: true,
     axisLabelOffset: 1.1,
@@ -70,7 +73,8 @@ class HGraph extends Component {
     pointLabelOffset: 0.1,
     pointLabelWrapWidth: null,
     showScore: true,
-    scoreFontSize: '120px'
+    scoreFontSize: 120,
+    zoomFactor: 2.25
   }
 
   constructor(props) {
@@ -78,7 +82,10 @@ class HGraph extends Component {
 
     this.state = {
       data: props.data || [],
-      activeNodeId: ''
+      activeNodeId: '',
+      zoomed: false,
+      zoomCoords: [0, 0],
+      zoomFactor: 1
     };
 
     this.Format = format('.0%');
@@ -163,6 +170,30 @@ class HGraph extends Component {
     }
   }
 
+  handlePointClick = (data) => {
+    const cos = Math.cos(this.angleSlice * data.angle - Math.PI / 2);
+    const sin = Math.sin(this.angleSlice * data.angle - Math.PI / 2);
+
+    const cx = this.scaleRadial(.5) * cos;
+    const cy = this.scaleRadial(.5) * sin;
+
+    if (this.state.zoomed) {
+      this.setState({
+        activeNodeId: '',
+        zoomed: false,
+        zoomCoords: [0, 0],
+        zoomFactor: 1
+      });
+    } else {
+      this.setState({
+        activeNodeId: data.parentId,
+        zoomed: true,
+        zoomCoords: [cx, cy],
+        zoomFactor: this.props.zoomFactor
+      });
+    }
+  }
+
   assemblePointsData = (data) => {
     const heightRange = this.props.height / 6;
     const widthRange = this.props.width * .1;
@@ -203,8 +234,10 @@ class HGraph extends Component {
         'middle';
 
       return {
+        parentId: data.id,
         key: val.label.replace(/\s/g,''),
         value: val.value,
+        angle: i,
         cx,
         cy,
         activeCx,
@@ -252,7 +285,7 @@ class HGraph extends Component {
     )
   }
 
-  renderAxisLabels = () => {
+  renderAxisLabels = (fontSize) => {
     return (
       <g>
         {this.allAxis.map((axis, i) => {
@@ -263,7 +296,7 @@ class HGraph extends Component {
               <Text
                 x={ x }
                 y={ y }
-                fontSize={ this.props.fontSize }
+                fontSize={ fontSize }
                 verticalAnchor={ y > 100 ? "start" : y < 100 ? "end" : "middle" }
                 textAnchor={ x > 10 ? "start" : x < -10 ? "end" : "middle" }
                 width={ this.props.axisLabelWrapWidth }
@@ -277,11 +310,11 @@ class HGraph extends Component {
     )
   }
 
-  renderAxes = () => {
+  renderAxes = (fontSize) => {
     return (
       <g>
         { this.renderThreshold() }
-        { this.props.showAxisLabel ? this.renderAxisLabels() : null }
+        { this.props.showAxisLabel ? this.renderAxisLabels(fontSize) : null }
       </g>
     )
   }
@@ -299,34 +332,65 @@ class HGraph extends Component {
             onClick={ this.handlePolygonClick({ id: '' }) }>
             <g
               transform={ "translate(" + ((this.props.width / 2) + this.props.margin.left) + "," + ((this.props.height / 2) + this.props.margin.top) + ")" }>
-              <g className="axis-container">
-                { this.renderAxes() }
-              </g>
-              <g className="polygons-container">
-                {
-                  sortedData.map(d => {
-                    return (
-                      <Polygon
-                        key={ d.id }
-                        color={ d.color || this.defaultColor }
-                        points={ this.assemblePointsData(d) }
-                        areaOpacity={ this.props.areaOpacity }
-                        areaOpacityActive={ this.props.areaOpacityActive }
-                        strokeWidth={ 0 }
-                        pointRadius={ this.props.pointRadius }
-                        score={ d.score }
-                        showScore={ this.props.showScore && (sortedData.length === 1 || d.id === this.state.activeNodeId) }
-                        scoreFontSize={ this.props.scoreFontSize }
-                        scoreFontColor={ this.props.scoreColor }
-                        fontSize={ this.props.fontSize }
-                        pointLabelWrapWidth={ this.props.pointLabelWrapWidth }
-                        isActive={ d.id === this.state.activeNodeId }
-                        onClick={ this.handlePolygonClick(d) }
-                      />
-                    )
-                  })
-                }
-              </g>
+              <Animate
+                start={{
+                  zoomFactor: this.state.zoomFactor,
+                  zoomCoords: this.state.zoomCoords,
+                  fontSize: this.props.fontSize / this.state.zoomFactor,
+                  pointRadius: this.props.pointRadius / this.state.zoomFactor
+                }}
+                enter={{
+                  zoomFactor: this.state.zoomFactor,
+                  zoomCoords: this.state.zoomCoords,
+                  fontSize: this.props.fontSize / this.state.zoomFactor,
+                  pointRadius: this.props.pointRadius / this.state.zoomFactor
+                }}
+                update={[
+                  {
+                    zoomFactor: [this.state.zoomFactor],
+                    zoomCoords: [this.state.zoomCoords],
+                    fontSize: [this.props.fontSize / this.state.zoomFactor],
+                    pointRadius: [this.props.pointRadius / this.state.zoomFactor],
+                    timing: { duration: 750, ease: easeExp }
+                  }
+                ]}>
+                {(state) => {
+                  return (
+                    <g
+                      transform={ `scale(${ state.zoomFactor }) translate(${ -state.zoomCoords[0] || 0 }, ${ -state.zoomCoords[1] || 0 })` }>
+                      <g className="axis-container">
+                        { this.renderAxes(state.fontSize) }
+                      </g>
+                      <g className="polygons-container">
+                        {
+                          sortedData.map(d => {
+                            return (
+                              <Polygon
+                                key={ d.id }
+                                color={ d.color || this.defaultColor }
+                                points={ this.assemblePointsData(d) }
+                                areaOpacity={ this.props.areaOpacity }
+                                areaOpacityActive={ this.props.areaOpacityActive }
+                                strokeWidth={ 0 }
+                                pointRadius={ state.pointRadius }
+                                score={ d.score }
+                                showScore={ this.props.showScore && (sortedData.length === 1 || d.id === this.state.activeNodeId) }
+                                scoreFontSize={ this.props.scoreFontSize }
+                                scoreFontColor={ this.props.scoreColor }
+                                fontSize={ state.fontSize }
+                                pointLabelWrapWidth={ this.props.pointLabelWrapWidth }
+                                isActive={ d.id === this.state.activeNodeId }
+                                onClick={ this.handlePolygonClick(d) }
+                                onPointClick={ this.handlePointClick }
+                              />
+                            )
+                          })
+                        }
+                      </g>
+                    </g>
+                  )
+                }}
+              </Animate>
             </g>
           </svg>
       </div>

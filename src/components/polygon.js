@@ -25,7 +25,7 @@ class Polygon extends Component {
     activePointRadius: PropTypes.number,
     showScore: PropTypes.bool,
     scorecolor: PropTypes.string,
-    scoreSize: PropTypes.string,
+    scoreSize: PropTypes.number,
     isActive: PropTypes.bool
   }
 
@@ -37,7 +37,7 @@ class Polygon extends Component {
     activePointRadius: 20,
     showScore: false,
     scoreColor: '#000',
-    scoreSize: "80px",
+    scoreSize: 80,
     isActive: false
   }
 
@@ -52,6 +52,11 @@ class Polygon extends Component {
   handleClick = (e) => {
     e.stopPropagation();
     this.props.onClick();
+  }
+
+  handlePointClick = (data) => (e) => {
+    e.stopPropagation();
+    this.props.onPointClick(data);
   }
 
   renderArea = () => {
@@ -105,7 +110,6 @@ class Polygon extends Component {
             cy: d.cy,
             activeCx: d.activeCx,
             activeCy: d.activeCy,
-            pointRadius: this.props.pointRadius,
             color: d.color || this.props.color,
             fontColor: d.fontColor,
             activeOpacity: this.props.isActive ? 1 : 0
@@ -115,7 +119,6 @@ class Polygon extends Component {
             cy: d.cy,
             activeCx: d.activeCx,
             activeCy: d.activeCy,
-            pointRadius: this.props.pointRadius,
             color: d.color || this.props.color,
             fontColor: d.fontColor,
             activeOpacity: this.props.isActive ? 1 : 0
@@ -126,7 +129,6 @@ class Polygon extends Component {
               cy: [d.cy],
               activeCx: [d.activeCx],
               activeCy: [d.activeCy],
-              pointRadius: [this.props.pointRadius],
               color: [d.color || this.props.color],
               fontColor: [d.fontColor],
               timing: { duration: 750, ease: easeExp }
@@ -145,10 +147,11 @@ class Polygon extends Component {
                     <g key={ data.key }>
                       <circle
                         className="polygon__point"
-                        r={ state.pointRadius }
+                        r={ this.props.pointRadius }
                         cx={ state.cx }
                         cy={ state.cy }
-                        fill={ state.color }>
+                        fill={ state.color }
+                        onClick={ this.handlePointClick(data) }>
                       </circle>
                       <g opacity={ state.activeOpacity } className="polygon__active-point-wrapper">
                         <Text
