@@ -3,28 +3,29 @@ import PropTypes from 'prop-types';
 import { arc } from 'd3-shape';
 import { format } from 'd3-format';
 import { scaleLinear } from 'd3-scale';
-import { easeExp } from 'd3-ease';
+import { easeExp, easeElastic } from 'd3-ease';
 import Animate from 'react-move/Animate';
+import NodeGroup from 'react-move/NodeGroup';
 import Text from 'react-svg-text';
 
-import Polygon from './polygon';
+const zoomTransitionTime = 750;
+const zoomDelayTime = 750;
 
 class HGraph extends Component {
   static propTypes = {
     data: PropTypes.arrayOf(PropTypes.shape({
       id: PropTypes.string.isRequired,
-      values: PropTypes.arrayOf(PropTypes.shape({
-        label: PropTypes.string.isRequired,
-        value: PropTypes.number.isRequired,
-        healthyMin: PropTypes.number.isRequired,
-        healthyMax: PropTypes.number.isRequired,
-        absoluteMin: PropTypes.number.isRequired,
-        absoluteMax: PropTypes.number.isRequired,
-        unitLabel: PropTypes.string.isRequired
-      })),
-      score: PropTypes.number.isRequired,
-      color: PropTypes.string
+      label: PropTypes.string.isRequired,
+      value: PropTypes.number.isRequired,
+      healthyMin: PropTypes.number.isRequired,
+      healthyMax: PropTypes.number.isRequired,
+      absoluteMin: PropTypes.number.isRequired,
+      absoluteMax: PropTypes.number.isRequired,
+      unitLabel: PropTypes.string.isRequired,
+      children: PropTypes.array
     })),
+    score: PropTypes.number.isRequired,
+    color: PropTypes.string,
     width: PropTypes.number,
     height: PropTypes.number,
     margin: PropTypes.shape({
@@ -56,6 +57,7 @@ class HGraph extends Component {
   static defaultProps = {
     width: 600,
     height: 600,
+    color: '#616363',
     margin: { top: 70, right: 100, bottom: 70, left: 100 },
     absoluteMin: 0,
     absoluteMax: 1,
@@ -80,48 +82,59 @@ class HGraph extends Component {
   constructor(props) {
     super(props);
 
+    this.absoluteMin = props.absoluteMin;
+    this.absoluteMax = props.absoluteMax;
+
+    this.radius = Math.min((props.width / 2), (props.height / 2));  // Radius of the outermost circle
+    this.rangeBottom = this.radius / 2.5;
+    this.angleSlice = (Math.PI * 2) / props.data.length;  // The width in radians of each "slice"
+
+    this.scaleRadial = scaleLinear()
+      .domain([this.absoluteMin, this.absoluteMax])
+      .range([this.rangeBottom, this.radius]);
+
+    const points = this.assemblePoints(props.data);
+
     this.state = {
-      data: props.data || [],
-      activeNodeId: '',
+      data: props.data,
+      activePointLabel: '',
       zoomed: false,
       zoomCoords: [0, 0],
-      zoomFactor: 1
+      zoomFactor: 1,
+      points: points,
+      path: this.assemblePath(points),
+      suppressTransition: true
     };
 
     this.Format = format('.0%');
-    this.defaultColor = '#616363';
-
-    if (props.data) {
-      this.initConfig(props);
-    }
   }
 
   componentWillReceiveProps(nextProps) {
     // TODO: There may be a way to refine this a bit to occur less often
     if (nextProps !== this.props) {
       this.initConfig(nextProps);
-      this.setState({ data: nextProps.data });
     }
   }
 
   initConfig = (props) => {
-    if (props.data.length) {
-      // NOTE: data[0] means currently this code assumes all entries have the same axis data
-      this.allAxis = props.data[0].values.map(val => val.label);  // Names of each axis
-    } else {
-      this.allAxis = this.allAxis ? this.allAxis : []; // A.k.a. If it has been set before, then leave it. If not, use empty array as placeholder.
-    }
-
     this.absoluteMin = props.absoluteMin;
     this.absoluteMax = props.absoluteMax;
 
     this.radius = Math.min((props.width / 2), (props.height / 2));  // Radius of the outermost circle
     this.rangeBottom = this.radius / 2.5;
-    this.angleSlice = (Math.PI * 2) / this.allAxis.length;  // The width in radians of each "slice"
+    this.angleSlice = (Math.PI * 2) / props.data.length;  // The width in radians of each "slice"
 
     this.scaleRadial = scaleLinear()
       .domain([this.absoluteMin, this.absoluteMax])
       .range([this.rangeBottom, this.radius]);
+
+    const points = this.assemblePoints(props.data);
+
+    this.setState({
+      data: props.data,
+      points,
+      path: this.assemblePath(points)
+    });
   }
 
   convertValueToHgraphPercentage = (valueObject) => {
@@ -162,31 +175,29 @@ class HGraph extends Component {
     return scale(value);
   }
 
-  handlePolygonClick = (data) => () => {
-    if (data.id === this.state.activeNodeId) {
-      this.setState({ activeNodeId: '' });
-    } else {
-      this.setState({ activeNodeId: data.id });
-    }
-  }
+  handlePointClick = (d) => (e) => {
+    e.stopPropagation();
 
-  handlePointClick = (data) => {
-    const cos = Math.cos(this.angleSlice * data.angle - Math.PI / 2);
-    const sin = Math.sin(this.angleSlice * data.angle - Math.PI / 2);
+    const cos = Math.cos(d.angle - Math.PI / 2);
+    const sin = Math.sin(d.angle - Math.PI / 2);
 
     const cx = this.scaleRadial(.5) * cos;
     const cy = this.scaleRadial(.5) * sin;
 
     if (this.state.zoomed) {
+      this.removeChildren();
       this.setState({
-        activeNodeId: '',
+        activePointLabel: '',
         zoomed: false,
         zoomCoords: [0, 0],
         zoomFactor: 1
       });
     } else {
+      if (d.children) {
+        this.addChildren(d.children);
+      }
       this.setState({
-        activeNodeId: data.parentId,
+        activePointLabel: d.key,
         zoomed: true,
         zoomCoords: [cx, cy],
         zoomFactor: this.props.zoomFactor
@@ -194,61 +205,175 @@ class HGraph extends Component {
     }
   }
 
-  assemblePointsData = (data) => {
+  buildPoint = (d, percentageFromValue) => {
     const heightRange = this.props.height / 6;
     const widthRange = this.props.width * .1;
 
-    return data.values.map((val, i) => {
-      // TODO: Ugh, clean this up at some point
-      const cos = Math.cos(this.angleSlice * i - Math.PI / 2);
-      const sin = Math.sin(this.angleSlice * i - Math.PI / 2);
+    const cos = Math.cos(d.angle - Math.PI / 2);
+    const sin = Math.sin(d.angle - Math.PI / 2);
 
-      const percentageFromValue = this.convertValueToHgraphPercentage(val);
-      const isAboveMidPoint = percentageFromValue > (this.props.thresholdMax - this.props.thresholdMin);
-      const isUnhealthilyHigh = percentageFromValue > this.props.thresholdMax;
+    const isAboveMidPoint = percentageFromValue > (this.props.thresholdMax - this.props.thresholdMin);
+    const isUnhealthilyHigh = percentageFromValue > this.props.thresholdMax;
 
-      const cx = this.scaleRadial(percentageFromValue) * cos;
-      const cy = this.scaleRadial(percentageFromValue) * sin;
+    const cx = this.scaleRadial(percentageFromValue) * cos;
+    const cy = this.scaleRadial(percentageFromValue) * sin;
 
-      const labelShouldRenderInside = isUnhealthilyHigh || (isAboveMidPoint && cy < heightRange && cy > -heightRange);
+    const labelShouldRenderInside = isUnhealthilyHigh || (isAboveMidPoint && cy < heightRange && cy > -heightRange);
 
-      const labelOffset = labelShouldRenderInside ? -this.props.pointLabelOffset : this.props.pointLabelOffset;
-      const labelPosition = parseFloat(percentageFromValue) + labelOffset;
-      const activeCx = this.scaleRadial(labelPosition) * cos;
-      const activeCy = this.scaleRadial(labelPosition) * sin;
+    const labelOffset = labelShouldRenderInside ? -this.props.pointLabelOffset : this.props.pointLabelOffset;
+    const labelPosition = parseFloat(percentageFromValue) + labelOffset;
+    const activeCx = this.scaleRadial(labelPosition) * cos;
+    const activeCy = this.scaleRadial(labelPosition) * sin;
 
-      const textAnchor =
-        labelShouldRenderInside && cx < widthRange && cx > -widthRange ? 'middle' :
-        labelShouldRenderInside && cx < -widthRange ? 'start' :
-        labelShouldRenderInside && cx > widthRange ? 'end' :
-        cx < -widthRange ? 'end' :
-        cx > widthRange ? 'start' :
-        'middle';
+    const textAnchor =
+      labelShouldRenderInside && cx < widthRange && cx > -widthRange ? 'middle' :
+      labelShouldRenderInside && cx < -widthRange ? 'start' :
+      labelShouldRenderInside && cx > widthRange ? 'end' :
+      cx < -widthRange ? 'end' :
+      cx > widthRange ? 'start' :
+      'middle';
 
-      const verticalAnchor =
-        labelShouldRenderInside && cy < heightRange ? 'start' :
-        labelShouldRenderInside && cy > heightRange ? 'end' :
-        labelShouldRenderInside ? 'middle' :
-        cy < heightRange ? 'end' :
-        cy > heightRange ? 'start' :
-        'middle';
+    const verticalAnchor =
+      labelShouldRenderInside && cy < heightRange ? 'start' :
+      labelShouldRenderInside && cy > heightRange ? 'end' :
+      labelShouldRenderInside ? 'middle' :
+      cy < heightRange ? 'end' :
+      cy > heightRange ? 'start' :
+      'middle';
 
       return {
-        parentId: data.id,
-        key: val.label.replace(/\s/g,''),
-        value: val.value,
-        angle: i,
-        cx,
-        cy,
+        key: d.label.replace(/\s/g,''),
+        value: d.value,
+        angle: d.angle,
+        cx: d.cx || cx,
+        cy: d.cy || cy,
         activeCx,
         activeCy,
-        color: this.thresholdColor(percentageFromValue, data.color),
+        color: this.thresholdColor(percentageFromValue, this.props.color),
         fontColor: this.thresholdColor(percentageFromValue, this.props.fontColor),
-        unitLabel: val.unitLabel,
+        unitLabel: d.unitLabel,
         textAnchor,
-        verticalAnchor
+        verticalAnchor,
+        parentKey: d.parentKey || null,
+        children: d.children || null
       };
+  }
+
+  assemblePath = (points) => {
+    let fillString = '';
+
+    points.map((p, i) => {
+      fillString += (i === 0 ? 'M ' : 'L ') + p.cx + ' ' + p.cy + ' ';
     });
+
+    return fillString;
+  }
+
+  assemblePoints = (data, addingChildren = false) => {
+    const points = data.map((d, i) => {
+      const percentageFromValue = this.convertValueToHgraphPercentage(d);
+      d.angle = addingChildren && d.angle ? d.angle : this.angleSlice * i;
+
+      return this.buildPoint(d, percentageFromValue);
+    });
+
+    return [].concat.apply([], points);
+  }
+
+  addChildren = (children) => {
+    let finalData = this.state.data.map(d => d);
+    let intrimData = this.state.data.map(d => d);
+
+    // TODO: Right now assumes children all for same parent
+    const parent = this.state.data.find(d => d.id === children[0].parentKey);
+    const parentIndex = this.state.data.findIndex(d => d.id === children[0].parentKey);
+
+    const parentPoint = this.state.points[parentIndex];
+    const siblingPoint = this.state.points[parentIndex + 1];;
+
+    let vector = [(siblingPoint.cx - parentPoint.cx), (siblingPoint.cy - parentPoint.cy)];
+    let distance = Math.sqrt(Math.pow(vector[0], 2) + Math.pow(vector[1], 2));
+    let vectorNormalized = [vector[0] / distance, vector[1] / distance];
+    const angleSections = children.length + 1;
+
+    const intrimChildren = children.map((c, i) => {
+      const copy = Object.assign({}, c);
+      const frac = 1 / (angleSections);
+      const point = [
+        parentPoint.cx + (distance * (frac * (i + 1))) * vectorNormalized[0],
+        parentPoint.cy + (distance * (frac * (i + 1))) * vectorNormalized[1]
+      ];
+      copy.cx = point[0];
+      copy.cy = point[1];
+      copy.isChild = true;
+      return copy;
+    });
+
+    intrimData.splice(parentIndex + 1, 0, intrimChildren);
+    intrimData = [].concat.apply([], intrimData);
+
+    children.map((c, i) => {
+      c.angle = (this.angleSlice * parentIndex) + ((this.angleSlice / angleSections) * (i + 1));
+      return c;
+    });
+
+    finalData.splice(parentIndex + 1, 0, children);
+    finalData = [].concat.apply([], finalData);
+
+    const intrimPoints = this.assemblePoints(intrimData, true);
+    const intrimPath = this.assemblePath(intrimPoints);
+    const finalPoints = this.assemblePoints(finalData, true);
+
+    this.setState({
+      data: intrimData,
+      points: intrimPoints,
+      path: intrimPath,
+      returnIntrimData: intrimData,
+      returnIntrimPoints: intrimPoints,
+      returnIntrimPath: intrimPath,
+      suppressTransition: true
+    }, () => {
+      this.setState({
+        data: finalData,
+        points: finalPoints,
+        path: this.assemblePath(finalPoints),
+        suppressTransition: false
+      });
+    });
+  }
+
+  removeChildren = () => {
+    const finalData = this.state.data.filter(d => !d.parentKey);
+    const finalPoints = this.assemblePoints(finalData);
+    const finalPath = this.assemblePath(finalPoints);
+
+    if (this.state.returnIntrimData) {
+      this.setState({
+        data: this.state.returnIntrimData,
+        points: this.state.returnIntrimPoints,
+        path: this.state.returnIntrimPath,
+        suppressTransition: false,
+      }, () => {
+        setTimeout(() => {
+          this.setState({
+            data: finalData,
+            points: finalPoints,
+            path: finalPath,
+            returnIntrimData: null,
+            returnIntrimPoints: null,
+            returnIntrimPath: null,
+            suppressTransition: true
+          });
+        }, zoomTransitionTime + 50);
+      });
+    } else {
+      this.setState({
+        data: finalData,
+        points: finalPoints,
+        path: finalPath,
+        suppressTransition: true
+      });
+    }
   }
 
   thresholdColor = (value, color) => {
@@ -288,11 +413,11 @@ class HGraph extends Component {
   renderAxisLabels = (fontSize) => {
     return (
       <g>
-        {this.allAxis.map((axis, i) => {
-          const x = this.scaleRadial(this.absoluteMax * this.props.axisLabelOffset) * Math.cos(this.angleSlice * i - Math.PI / 2);
-          const y = this.scaleRadial(this.absoluteMax * this.props.axisLabelOffset) * Math.sin(this.angleSlice * i - Math.PI / 2);
+        {this.state.data.map((d, i) => {
+          const x = this.scaleRadial(this.absoluteMax * this.props.axisLabelOffset) * Math.cos(d.angle - Math.PI / 2);
+          const y = this.scaleRadial(this.absoluteMax * this.props.axisLabelOffset) * Math.sin(d.angle - Math.PI / 2);
           return (
-            <g key={ axis }>
+            <g key={ d.label }>
               <Text
                 x={ x }
                 y={ y }
@@ -301,7 +426,7 @@ class HGraph extends Component {
                 textAnchor={ x > 10 ? "start" : x < -10 ? "end" : "middle" }
                 width={ this.props.axisLabelWrapWidth }
                 fill={ this.props.fontColor }>
-                { axis }
+                { d.label }
               </Text>
             </g>
           )
@@ -320,26 +445,23 @@ class HGraph extends Component {
   }
 
   render() {
-    const sortedData = this.state.data.sort((a, b) => {
-      return (a.id === this.state.activeNodeId)-(b.id === this.state.activeNodeId);
-    });
-
     return(
       <div>
           <svg
             width={ this.props.width + this.props.margin.left + this.props.margin.right }
-            height={ this.props.height + this.props.margin.top + this.props.margin.bottom }
-            onClick={ this.handlePolygonClick({ id: '' }) }>
+            height={ this.props.height + this.props.margin.top + this.props.margin.bottom }>
             <g
               transform={ "translate(" + ((this.props.width / 2) + this.props.margin.left) + "," + ((this.props.height / 2) + this.props.margin.top) + ")" }>
               <Animate
                 start={{
+                  path: this.state.path,
                   zoomFactor: this.state.zoomFactor,
                   zoomCoords: this.state.zoomCoords,
                   fontSize: this.props.fontSize / this.state.zoomFactor,
                   pointRadius: this.props.pointRadius / this.state.zoomFactor
                 }}
                 enter={{
+                  path: this.state.path,
                   zoomFactor: this.state.zoomFactor,
                   zoomCoords: this.state.zoomCoords,
                   fontSize: this.props.fontSize / this.state.zoomFactor,
@@ -347,46 +469,134 @@ class HGraph extends Component {
                 }}
                 update={[
                   {
+                    d: this.state.suppressTransition ? this.state.path : [this.state.path],
+                    timing: { duration: zoomTransitionTime, ease: easeElastic, delay: this.state.zoomed ? zoomDelayTime : 0 }
+                  },
+                  {
                     zoomFactor: [this.state.zoomFactor],
                     zoomCoords: [this.state.zoomCoords],
                     fontSize: [this.props.fontSize / this.state.zoomFactor],
                     pointRadius: [this.props.pointRadius / this.state.zoomFactor],
-                    timing: { duration: 750, ease: easeExp }
+                    timing: { duration: zoomTransitionTime, ease: easeExp, delay: this.state.zoomed ? 0 : zoomDelayTime }
                   }
                 ]}>
-                {(state) => {
+                {(globalState) => {
                   return (
                     <g
-                      transform={ `scale(${ state.zoomFactor }) translate(${ -state.zoomCoords[0] || 0 }, ${ -state.zoomCoords[1] || 0 })` }>
+                      transform={ `scale(${ globalState.zoomFactor }) translate(${ -globalState.zoomCoords[0] || 0 }, ${ -globalState.zoomCoords[1] || 0 })` }>
                       <g className="axis-container">
-                        { this.renderAxes(state.fontSize) }
+                        { this.renderAxes(globalState.fontSize) }
                       </g>
-                      <g className="polygons-container">
-                        {
-                          sortedData.map(d => {
-                            return (
-                              <Polygon
-                                key={ d.id }
-                                color={ d.color || this.defaultColor }
-                                points={ this.assemblePointsData(d) }
-                                areaOpacity={ this.props.areaOpacity }
-                                areaOpacityActive={ this.props.areaOpacityActive }
-                                strokeWidth={ 0 }
-                                pointRadius={ state.pointRadius }
-                                score={ d.score }
-                                showScore={ this.props.showScore && (sortedData.length === 1 || d.id === this.state.activeNodeId) }
-                                scoreFontSize={ this.props.scoreFontSize }
-                                scoreFontColor={ this.props.scoreColor }
-                                fontSize={ state.fontSize }
-                                pointLabelWrapWidth={ this.props.pointLabelWrapWidth }
-                                isActive={ d.id === this.state.activeNodeId }
-                                onClick={ this.handlePolygonClick(d) }
-                                onPointClick={ this.handlePointClick }
-                              />
-                            )
-                          })
-                        }
-                      </g>
+                      <path
+                        d={ globalState.d }
+                        fill={ this.props.color }
+                        opacity={ this.props.areaOpacity }
+                      />
+                      <NodeGroup
+                        data={ this.state.points }
+                        keyAccessor={ (d) => d.key }
+                        start={(d, index) => {
+                          return {
+                            cx: d.cx,
+                            cy: d.cy,
+                            activeCx: d.activeCx,
+                            activeCy: d.activeCy,
+                            textOpacity: 0,
+                            r: d.parentKey ? 0 : this.props.pointRadius / this.state.zoomFactor,
+                            opacity: d.isChild ? 0 : 1
+                          }
+                        }}
+                        enter={(d, index) => {
+                          return {
+                            cx: d.cx,
+                            cy: d.cy,
+                            activeCx: d.activeCx,
+                            activeCx: d.activeCy,
+                            textOpacity: 0,
+                            r: d.parentKey ? 0 : this.props.pointRadius / this.state.zoomFactor,
+                            opacity: d.isChild ? 0 : 1
+                          }
+                        }}
+                        update={(d, index) => {
+                          const { zoomed } = this.state;
+                          const radius = this.props.pointRadius / this.state.zoomFactor;
+                          return [
+                            {
+                              cx: this.state.suppressTransition ? d.cx : [d.cx],
+                              cy: this.state.suppressTransition ? d.cy : [d.cy],
+                              activeCx: this.state.suppressTransition ? d.activeCx : [d.activeCx],
+                              activeCy: this.state.suppressTransition ? d.activeCy : [d.activeCy],
+                              r: !zoomed && d.parentKey ? [0] : d.parentKey ? [radius * .75] : [radius],
+                              opacity: [1],
+                              timing: {
+                                duration: zoomTransitionTime,
+                                ease: d.parentKey ? easeElastic : easeExp,
+                                delay:
+                                  (zoomed && !d.parentKey) ? 0 :
+                                  (zoomed && d.parentKey) ? zoomDelayTime :
+                                  (!zoomed && !d.parentKey) ? zoomDelayTime :
+                                  (!zoomed && d.parentKey) ? 0 : 0
+                              }
+                            },
+                            {
+                              textOpacity: this.state.zoomed ? [1] : [0],
+                              timing: {
+                                duration: zoomTransitionTime,
+                                ease: easeExp,
+                                delay:
+                                  (zoomed && !d.parentKey) ? 0 :
+                                  (zoomed && d.parentKey) ? zoomDelayTime :
+                                  (!zoomed && !d.parentKey) ? zoomDelayTime :
+                                  (!zoomed && d.parentKey) ? 0 : 0
+                              }
+                            }
+                          ]
+                        }}
+                      >
+                        {(nodes) => {
+                          return (
+                            <g>
+                              {nodes.map(({ key, data, state }) => {
+                                return (
+                                  <g key={ data.key }>
+                                    <circle
+                                      className="polygon__point"
+                                      r={ state.r }
+                                      fill={ data.color }
+                                      cx={ state.cx }
+                                      cy={ state.cy }
+                                      opacity={ state.opacity }
+                                      onClick={ this.handlePointClick(data) }>
+                                    </circle>
+                                    <Text
+                                      opacity={ state.textOpacity }
+                                      width={ this.props.pointLabelWrapWidth }
+                                      x={ data.activeCx }
+                                      y={ data.activeCy }
+                                      fontSize={ globalState.fontSize }
+                                      verticalAnchor={ data.verticalAnchor }
+                                      textAnchor={ data.textAnchor }
+                                      fill={ data.fontColor }>
+                                      { `${data.value} ${data.unitLabel}` }
+                                    </Text>
+                                  </g>
+                                )
+                              })}
+                            </g>
+                          );
+                        }}
+                      </NodeGroup>
+                      <Text
+                        x="0"
+                        y="0"
+                        textAnchor="middle"
+                        verticalAnchor="middle"
+                        fontSize={ this.props.scoreFontSize }
+                        fontWeight="bold"
+                        pointerEvents="none"
+                        fill={ this.props.scoreFontColor }>
+                          { this.props.score }
+                      </Text>
                     </g>
                   )
                 }}

@@ -1,5 +1,12 @@
 {
   "male": {
+    "totalCholesterol": {
+      "label": "Total Cholesterol",
+      "healthyRange": [0.25, 0.75],
+      "absoluteRange": [0, 1],
+      "weight": 21,
+      "unitLabel": "mg/dl"
+    },
     "ldl": {
       "label": "LDL Cholesterol",
       "healthyRange": [50, 130],

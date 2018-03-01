@@ -105,15 +105,20 @@ class Polygon extends Component {
         <NodeGroup
           data={ data }
           keyAccessor={ (d) => d.key }
-          start={(d, index) => ({
-            cx: d.cx,
-            cy: d.cy,
-            activeCx: d.activeCx,
-            activeCy: d.activeCy,
-            color: d.color || this.props.color,
-            fontColor: d.fontColor,
-            activeOpacity: this.props.isActive ? 1 : 0
-          })}
+          start={(d, index) => {
+            // if (c.isChild) {
+            //   const
+            // }
+            return {
+              cx: d.cx,
+              cy: d.cy,
+              activeCx: d.activeCx,
+              activeCy: d.activeCy,
+              color: d.color || this.props.color,
+              fontColor: d.fontColor,
+              activeOpacity: this.props.isActive ? 1 : 0
+            }
+          }}
           enter={(d, index) => ({
             cx: d.cx,
             cy: d.cy,
