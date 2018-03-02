@@ -1,6 +1,6 @@
 {
   "name": "hgraph-react",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "A React component using d3 to build hGraph, an open source visualization for patient health data.",
   "main": "build/index.js",
   "license": "Apache-2.0",
