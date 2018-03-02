@@ -4,6 +4,10 @@
   "description": "A React component using d3 to build hGraph, an open source visualization for patient health data.",
   "main": "build/index.js",
   "license": "Apache-2.0",
+  "repository" : {
+    "type" : "git",
+    "url" : "https://github.com/goinvo/hgraph-react"
+  },
   "dependencies": {
     "d3-ease": "^1.0.3",
     "d3-format": "^1.2.2",
