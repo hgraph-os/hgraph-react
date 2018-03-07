@@ -175,6 +175,12 @@ class HGraph extends Component {
     return scale(value);
   }
 
+  handleSvgClick = (e) => {
+    if (this.state.zoomed) {
+      this.zoomOut();
+    }
+  }
+
   handlePointClick = (d) => (e) => {
     e.stopPropagation();
 
@@ -184,17 +190,11 @@ class HGraph extends Component {
     const cx = this.scaleRadial(.5) * cos;
     const cy = this.scaleRadial(.5) * sin;
 
-    if (this.state.zoomed) {
-      this.removeChildren();
-      this.setState({
-        activePointLabel: '',
-        zoomed: false,
-        zoomCoords: [0, 0],
-        zoomFactor: 1
-      });
+    if (this.state.zoomed && d.key === this.state.activePointLabel) {
+      this.zoomOut();
     } else {
-      if (d.children) {
-        this.addChildren(d.children);
+      if (!this.state.zoomed) {
+        this.addChildren();
       }
       this.setState({
         activePointLabel: d.key,
@@ -203,6 +203,16 @@ class HGraph extends Component {
         zoomFactor: this.props.zoomFactor
       });
     }
+  }
+
+  zoomOut = () => {
+    this.removeChildren();
+    this.setState({
+      activePointLabel: '',
+      zoomed: false,
+      zoomCoords: [0, 0],
+      zoomFactor: 1
+    });
   }
 
   buildPoint = (d, percentageFromValue) => {
@@ -280,44 +290,46 @@ class HGraph extends Component {
     return [].concat.apply([], points);
   }
 
-  addChildren = (children) => {
+  addChildren = () => {
     let finalData = this.state.data.map(d => d);
     let intrimData = this.state.data.map(d => d);
+    let groupsInserted = 0;
 
-    // TODO: Right now assumes children all for same parent
-    const parent = this.state.data.find(d => d.id === children[0].parentKey);
-    const parentIndex = this.state.data.findIndex(d => d.id === children[0].parentKey);
+    const allDataWithChildren = this.state.data.filter(d => d.children && d.children.length);
 
-    const parentPoint = this.state.points[parentIndex];
-    const siblingPoint = this.state.points[parentIndex + 1];;
+    allDataWithChildren.forEach(data => {
+      const dataIndex = this.state.data.findIndex(d => d.id === data.id);
+      const point = this.state.points[dataIndex];
+      const siblingPoint = this.state.points[dataIndex + 1];
 
-    let vector = [(siblingPoint.cx - parentPoint.cx), (siblingPoint.cy - parentPoint.cy)];
-    let distance = Math.sqrt(Math.pow(vector[0], 2) + Math.pow(vector[1], 2));
-    let vectorNormalized = [vector[0] / distance, vector[1] / distance];
-    const angleSections = children.length + 1;
+      const vector = [(siblingPoint.cx - point.cx), (siblingPoint.cy - point.cy)];
+      const distance = Math.sqrt(Math.pow(vector[0], 2) + Math.pow(vector[1], 2));
+      const vectorNormalized = [vector[0] / distance, vector[1] / distance];
+      const angleSections = point.children.length + 1;
 
-    const intrimChildren = children.map((c, i) => {
-      const copy = Object.assign({}, c);
-      const frac = 1 / (angleSections);
-      const point = [
-        parentPoint.cx + (distance * (frac * (i + 1))) * vectorNormalized[0],
-        parentPoint.cy + (distance * (frac * (i + 1))) * vectorNormalized[1]
-      ];
-      copy.cx = point[0];
-      copy.cy = point[1];
-      copy.isChild = true;
-      return copy;
+      const pointsIntrimChildren = point.children.map((c, i) => {
+        const copy = Object.assign({}, c);
+        const frac = 1 / (angleSections);
+        copy.cx = point.cx + (distance * (frac * (i + 1))) * vectorNormalized[0];
+        copy.cy = point.cy + (distance * (frac * (i + 1))) * vectorNormalized[1];
+        copy.isChild = true;
+        return copy;
+      });
+
+      point.children.map((c, i) => {
+        c.angle = (this.angleSlice * dataIndex) + ((this.angleSlice / angleSections) * (i + 1));
+        return c;
+      });
+
+      const spliceIndex = dataIndex + 1 + groupsInserted;
+
+      intrimData.splice(spliceIndex, 0, pointsIntrimChildren);
+      finalData.splice(spliceIndex, 0, point.children);
+
+      groupsInserted += 1;
     });
 
-    intrimData.splice(parentIndex + 1, 0, intrimChildren);
     intrimData = [].concat.apply([], intrimData);
-
-    children.map((c, i) => {
-      c.angle = (this.angleSlice * parentIndex) + ((this.angleSlice / angleSections) * (i + 1));
-      return c;
-    });
-
-    finalData.splice(parentIndex + 1, 0, children);
     finalData = [].concat.apply([], finalData);
 
     const intrimPoints = this.assemblePoints(intrimData, true);
@@ -449,7 +461,8 @@ class HGraph extends Component {
       <div>
           <svg
             width={ this.props.width + this.props.margin.left + this.props.margin.right }
-            height={ this.props.height + this.props.margin.top + this.props.margin.bottom }>
+            height={ this.props.height + this.props.margin.top + this.props.margin.bottom }
+            onClick={ this.handleSvgClick }>
             <g
               transform={ "translate(" + ((this.props.width / 2) + this.props.margin.left) + "," + ((this.props.height / 2) + this.props.margin.top) + ")" }>
               <Animate
@@ -526,8 +539,8 @@ class HGraph extends Component {
                               cy: this.state.suppressTransition ? d.cy : [d.cy],
                               activeCx: this.state.suppressTransition ? d.activeCx : [d.activeCx],
                               activeCy: this.state.suppressTransition ? d.activeCy : [d.activeCy],
-                              r: !zoomed && d.parentKey ? [0] : d.parentKey ? [radius * .75] : [radius],
-                              opacity: [1],
+                              r: !zoomed && d.parentKey ? [1] : d.parentKey ? [radius * .75] : [radius],
+                              opacity: !zoomed && d.parentKey ? [0] : [1],
                               timing: {
                                 duration: zoomTransitionTime,
                                 ease: d.parentKey ? easeElastic : easeExp,
