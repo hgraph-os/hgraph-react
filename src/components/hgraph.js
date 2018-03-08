@@ -8,9 +8,6 @@ import Animate from 'react-move/Animate';
 import NodeGroup from 'react-move/NodeGroup';
 import Text from 'react-svg-text';
 
-const zoomTransitionTime = 750;
-const zoomDelayTime = 750;
-
 class HGraph extends Component {
   static propTypes = {
     data: PropTypes.arrayOf(PropTypes.shape({
@@ -51,7 +48,8 @@ class HGraph extends Component {
     pointLabelWrapWidth: PropTypes.number,
     showScore: PropTypes.bool,
     scoreFontSize: PropTypes.number,
-    zoomFactor: PropTypes.number
+    zoomFactor: PropTypes.number,
+    zoomTransitionTime: PropTypes.number
   };
 
   static defaultProps = {
@@ -76,23 +74,14 @@ class HGraph extends Component {
     pointLabelWrapWidth: null,
     showScore: true,
     scoreFontSize: 120,
-    zoomFactor: 2.25
+    zoomFactor: 2.25,
+    zoomTransitionTime: 750
   }
 
   constructor(props) {
     super(props);
 
-    this.absoluteMin = props.absoluteMin;
-    this.absoluteMax = props.absoluteMax;
-
-    this.radius = Math.min((props.width / 2), (props.height / 2));  // Radius of the outermost circle
-    this.rangeBottom = this.radius / 2.5;
-    this.angleSlice = (Math.PI * 2) / props.data.length;  // The width in radians of each "slice"
-
-    this.scaleRadial = scaleLinear()
-      .domain([this.absoluteMin, this.absoluteMax])
-      .range([this.rangeBottom, this.radius]);
-
+    this.setGlobalConfig(props, false);
     const points = this.assemblePoints(props.data);
 
     this.state = {
@@ -112,11 +101,11 @@ class HGraph extends Component {
   componentWillReceiveProps(nextProps) {
     // TODO: There may be a way to refine this a bit to occur less often
     if (nextProps !== this.props) {
-      this.initConfig(nextProps);
+      this.setGlobalConfig(nextProps);
     }
   }
 
-  initConfig = (props) => {
+  setGlobalConfig = (props, shouldSetState = true) => {
     this.absoluteMin = props.absoluteMin;
     this.absoluteMax = props.absoluteMax;
 
@@ -128,13 +117,15 @@ class HGraph extends Component {
       .domain([this.absoluteMin, this.absoluteMax])
       .range([this.rangeBottom, this.radius]);
 
-    const points = this.assemblePoints(props.data);
+    if (shouldSetState) {
+      const points = this.assemblePoints(props.data);
 
-    this.setState({
-      data: props.data,
-      points,
-      path: this.assemblePath(points)
-    });
+      this.setState({
+        data: props.data,
+        points,
+        path: this.assemblePath(points)
+      });
+    }
   }
 
   convertValueToHgraphPercentage = (valueObject) => {
@@ -264,7 +255,7 @@ class HGraph extends Component {
         unitLabel: d.unitLabel,
         textAnchor,
         verticalAnchor,
-        parentKey: d.parentKey || null,
+        isChild: d.isChild || false,
         children: d.children || null
       };
   }
@@ -318,6 +309,7 @@ class HGraph extends Component {
 
       point.children.map((c, i) => {
         c.angle = (this.angleSlice * dataIndex) + ((this.angleSlice / angleSections) * (i + 1));
+        c.isChild = true;
         return c;
       });
 
@@ -355,7 +347,7 @@ class HGraph extends Component {
   }
 
   removeChildren = () => {
-    const finalData = this.state.data.filter(d => !d.parentKey);
+    const finalData = this.state.data.filter(d => !d.isChild);
     const finalPoints = this.assemblePoints(finalData);
     const finalPath = this.assemblePath(finalPoints);
 
@@ -376,7 +368,7 @@ class HGraph extends Component {
             returnIntrimPath: null,
             suppressTransition: true
           });
-        }, zoomTransitionTime + 50);
+        }, this.props.zoomTransitionTime + 50);
       });
     } else {
       this.setState({
@@ -428,6 +420,7 @@ class HGraph extends Component {
         {this.state.data.map((d, i) => {
           const x = this.scaleRadial(this.absoluteMax * this.props.axisLabelOffset) * Math.cos(d.angle - Math.PI / 2);
           const y = this.scaleRadial(this.absoluteMax * this.props.axisLabelOffset) * Math.sin(d.angle - Math.PI / 2);
+
           return (
             <g key={ d.label }>
               <Text
@@ -483,14 +476,14 @@ class HGraph extends Component {
                 update={[
                   {
                     d: this.state.suppressTransition ? this.state.path : [this.state.path],
-                    timing: { duration: zoomTransitionTime, ease: easeElastic, delay: this.state.zoomed ? zoomDelayTime : 0 }
+                    timing: { duration: this.props.zoomTransitionTime, ease: easeElastic, delay: this.state.zoomed ? this.props.zoomTransitionTime : 0 }
                   },
                   {
                     zoomFactor: [this.state.zoomFactor],
                     zoomCoords: [this.state.zoomCoords],
                     fontSize: [this.props.fontSize / this.state.zoomFactor],
                     pointRadius: [this.props.pointRadius / this.state.zoomFactor],
-                    timing: { duration: zoomTransitionTime, ease: easeExp, delay: this.state.zoomed ? 0 : zoomDelayTime }
+                    timing: { duration: this.props.zoomTransitionTime, ease: easeExp, delay: this.state.zoomed ? 0 : this.props.zoomTransitionTime }
                   }
                 ]}>
                 {(globalState) => {
@@ -512,10 +505,8 @@ class HGraph extends Component {
                           return {
                             cx: d.cx,
                             cy: d.cy,
-                            activeCx: d.activeCx,
-                            activeCy: d.activeCy,
                             textOpacity: 0,
-                            r: d.parentKey ? 0 : this.props.pointRadius / this.state.zoomFactor,
+                            r: d.isChild ? 0 : this.props.pointRadius / this.state.zoomFactor,
                             opacity: d.isChild ? 0 : 1
                           }
                         }}
@@ -523,10 +514,8 @@ class HGraph extends Component {
                           return {
                             cx: d.cx,
                             cy: d.cy,
-                            activeCx: d.activeCx,
-                            activeCx: d.activeCy,
                             textOpacity: 0,
-                            r: d.parentKey ? 0 : this.props.pointRadius / this.state.zoomFactor,
+                            r: d.isChild ? 0 : this.props.pointRadius / this.state.zoomFactor,
                             opacity: d.isChild ? 0 : 1
                           }
                         }}
@@ -537,30 +526,28 @@ class HGraph extends Component {
                             {
                               cx: this.state.suppressTransition ? d.cx : [d.cx],
                               cy: this.state.suppressTransition ? d.cy : [d.cy],
-                              activeCx: this.state.suppressTransition ? d.activeCx : [d.activeCx],
-                              activeCy: this.state.suppressTransition ? d.activeCy : [d.activeCy],
-                              r: !zoomed && d.parentKey ? [1] : d.parentKey ? [radius * .75] : [radius],
-                              opacity: !zoomed && d.parentKey ? [0] : [1],
+                              r: !zoomed && d.isChild ? [1] : d.isChild ? [radius * .75] : [radius],
+                              opacity: !zoomed && d.isChild ? [0] : [1],
                               timing: {
-                                duration: zoomTransitionTime,
-                                ease: d.parentKey ? easeElastic : easeExp,
+                                duration: this.props.zoomTransitionTime,
+                                ease: d.isChild ? easeElastic : easeExp,
                                 delay:
-                                  (zoomed && !d.parentKey) ? 0 :
-                                  (zoomed && d.parentKey) ? zoomDelayTime :
-                                  (!zoomed && !d.parentKey) ? zoomDelayTime :
-                                  (!zoomed && d.parentKey) ? 0 : 0
+                                  (zoomed && !d.isChild) ? 0 :
+                                  (zoomed && d.isChild) ? this.props.zoomTransitionTime :
+                                  (!zoomed && !d.isChild) ? this.props.zoomTransitionTime :
+                                  (!zoomed && d.isChild) ? 0 : 0
                               }
                             },
                             {
-                              textOpacity: this.state.zoomed ? [1] : [0],
+                              textOpacity: this.state.zoomed ? [1] : 0,
                               timing: {
-                                duration: zoomTransitionTime,
+                                duration: this.props.zoomTransitionTime,
                                 ease: easeExp,
                                 delay:
-                                  (zoomed && !d.parentKey) ? 0 :
-                                  (zoomed && d.parentKey) ? zoomDelayTime :
-                                  (!zoomed && !d.parentKey) ? zoomDelayTime :
-                                  (!zoomed && d.parentKey) ? 0 : 0
+                                  (zoomed && !d.isChild) ? 0 :
+                                  (zoomed && d.isChild) ? this.props.zoomTransitionTime :
+                                  (!zoomed && !d.isChild) ? this.props.zoomTransitionTime :
+                                  (!zoomed && d.isChild) ? 0 : 0
                               }
                             }
                           ]
