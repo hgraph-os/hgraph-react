@@ -44,7 +44,7 @@ Most props are not required and have sensible defaults built in, as listed below
 | axisLabelWrapWidth | number | false | The width (in pixels) that the labels should wrap text at. | 80 (Note: use `null` for no wrapping) |
 | areaOpacity | number | false | The opacity of the polygon shape. | 0.25 |
 | pointRadius | number | false | The radius (in pixels) of the points for metric values. | 10 |
-| pointLabelWrapWidth | number | The width (in pixels) that the point levels should wrap text at. | null (no wrapping) |
+| pointLabelWrapWidth | number | false | The width (in pixels) that the point labels should wrap text at. | null (no wrapping) |
 | showScore | boolean | false | Whether or not to display the overall score in the middle of hGraph. | true |
 | scoreFontSize | number | false | The size (in pixels) of the font for the overall hGraph score | 120 |
 | scoreFontColor | string (hex color code) | false | The color of the hGraph score. | '#000' |
