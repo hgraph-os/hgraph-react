@@ -304,6 +304,7 @@ class HGraph extends Component {
         copy.cx = point.cx + (distance * (frac * (i + 1))) * vectorNormalized[0];
         copy.cy = point.cy + (distance * (frac * (i + 1))) * vectorNormalized[1];
         copy.isChild = true;
+        copy.angle = (this.angleSlice * dataIndex) + ((this.angleSlice / angleSections) * (i + 1));
         return copy;
       });
 
