@@ -20,8 +20,8 @@ class HGraph extends Component {
       absoluteMax: PropTypes.number.isRequired,
       unitLabel: PropTypes.string.isRequired,
       children: PropTypes.array
-    })),
-    score: PropTypes.number.isRequired,
+    })).isRequired,
+    score: PropTypes.number,
     color: PropTypes.string,
     width: PropTypes.number,
     height: PropTypes.number,
@@ -48,6 +48,7 @@ class HGraph extends Component {
     pointLabelWrapWidth: PropTypes.number,
     showScore: PropTypes.bool,
     scoreFontSize: PropTypes.number,
+    scoreFontColor: PropTypes.string,
     zoomFactor: PropTypes.number,
     zoomTransitionTime: PropTypes.number
   };
@@ -74,6 +75,7 @@ class HGraph extends Component {
     pointLabelWrapWidth: null,
     showScore: true,
     scoreFontSize: 120,
+    scoreFontColor: '#000',
     zoomFactor: 2.25,
     zoomTransitionTime: 750
   }
