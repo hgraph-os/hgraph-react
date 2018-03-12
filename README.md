@@ -28,6 +28,7 @@ Still to document or check if relevant/correct:
 [//]: # (TODO: How to provide documentation for data elements shape)
 ### hGraph Component Props
 Most props are not required and have sensible defaults built in, as listed below.
+
 | Prop Name | Type | Is Required | Description | Default |
 | --------- | ---- | ----------- | ----------- | ------- |
 | data | array | true | An array of objects representing the metrics to display in hGraph (see [below](#metrics)) | N/A |
@@ -53,6 +54,7 @@ Most props are not required and have sensible defaults built in, as listed below
 
 ### hGraph Metric Object Properties <a name="metrics"></a>
 [//]: # (TODO: Is id really required? Right now labels need to be unique but should probably change this, use id instead?)
+
 | Property Name | Type | Is Required | Description |
 | ------------- | ---- | ----------- | ----------- |
 | id | string | true | A unique (compared to all other metrics) identifier string for the metric. |
