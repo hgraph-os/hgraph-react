@@ -31,10 +31,9 @@ class HGraph extends Component {
       bottom: PropTypes.number,
       left: PropTypes.number
     }),
-    absoluteMin: PropTypes.number,
-    absoluteMax: PropTypes.number,
     thresholdMin: PropTypes.number,
     thresholdMax: PropTypes.number,
+    donutHoleFactor: PropTypes.number,
     healthyRangeFillColor: PropTypes.string,
     fontSize: PropTypes.number,
     fontColor: PropTypes.string,
@@ -42,7 +41,6 @@ class HGraph extends Component {
     axisLabelOffset: PropTypes.number,
     axisLabelWrapWidth: PropTypes.number,
     areaOpacity: PropTypes.number,
-    areaOpacityActive: PropTypes.number,
     pointRadius: PropTypes.number,
     pointLabelOffset: PropTypes.number,
     pointLabelWrapWidth: PropTypes.number,
@@ -58,20 +56,18 @@ class HGraph extends Component {
     height: 600,
     color: '#616363',
     margin: { top: 70, right: 100, bottom: 70, left: 100 },
-    absoluteMin: 0,
-    absoluteMax: 1,
     thresholdMin: .25,
     thresholdMax: .75,
+    donutHoleFactor: .4,
     healthyRangeFillColor: '#98bd8e',
     fontSize: 16,
     fontColor: '#000',
     showAxisLabel: true,
-    axisLabelOffset: 1.1,
+    axisLabelOffset: 12,
     axisLabelWrapWidth: 80,
     areaOpacity: 0.25,
-    areaOpacityActive: 0.6,
     pointRadius: 10,
-    pointLabelOffset: 0.1,
+    pointLabelOffset: 8,
     pointLabelWrapWidth: null,
     showScore: true,
     scoreFontSize: 120,
@@ -83,12 +79,15 @@ class HGraph extends Component {
   constructor(props) {
     super(props);
 
+    this.absoluteMin = 0;
+    this.absoluteMax = 1;
+
     this.setGlobalConfig(props, false);
     const points = this.assemblePoints(props.data);
 
     this.state = {
       data: props.data,
-      activePointLabel: '',
+      activePointId: '',
       zoomed: false,
       zoomCoords: [0, 0],
       zoomFactor: 1,
@@ -108,11 +107,8 @@ class HGraph extends Component {
   }
 
   setGlobalConfig = (props, shouldSetState = true) => {
-    this.absoluteMin = props.absoluteMin;
-    this.absoluteMax = props.absoluteMax;
-
     this.radius = Math.min((props.width / 2), (props.height / 2));  // Radius of the outermost circle
-    this.rangeBottom = this.radius / 2.5;
+    this.rangeBottom = this.radius * this.props.donutHoleFactor;
     this.angleSlice = (Math.PI * 2) / props.data.length;  // The width in radians of each "slice"
 
     this.scaleRadial = scaleLinear()
@@ -155,11 +151,11 @@ class HGraph extends Component {
     else if (value < healthyMin) {
       scale = scaleLinear()
         .domain([absoluteMin, healthyMin])
-        .range([this.props.absoluteMin, this.props.thresholdMin]);
+        .range([this.absoluteMin, this.props.thresholdMin]);
     } else if (value > healthyMax) {
       scale = scaleLinear()
         .domain([healthyMax, absoluteMax])
-        .range([this.props.thresholdMax, this.props.absoluteMax]);
+        .range([this.props.thresholdMax, this.absoluteMax]);
     } else {
       scale = scaleLinear()
         .domain([healthyMin, healthyMax])
@@ -183,14 +179,14 @@ class HGraph extends Component {
     const cx = this.scaleRadial(.5) * cos;
     const cy = this.scaleRadial(.5) * sin;
 
-    if (this.state.zoomed && d.key === this.state.activePointLabel) {
+    if (this.state.zoomed && d.key === this.state.activePointId) {
       this.zoomOut();
     } else {
       if (!this.state.zoomed) {
         this.addChildren();
       }
       this.setState({
-        activePointLabel: d.key,
+        activePointId: d.key,
         zoomed: true,
         zoomCoords: [cx, cy],
         zoomFactor: this.props.zoomFactor
@@ -201,7 +197,7 @@ class HGraph extends Component {
   zoomOut = () => {
     this.removeChildren();
     this.setState({
-      activePointLabel: '',
+      activePointId: '',
       zoomed: false,
       zoomCoords: [0, 0],
       zoomFactor: 1
@@ -224,9 +220,9 @@ class HGraph extends Component {
     const labelShouldRenderInside = isUnhealthilyHigh || (isAboveMidPoint && cy < heightRange && cy > -heightRange);
 
     const labelOffset = labelShouldRenderInside ? -this.props.pointLabelOffset : this.props.pointLabelOffset;
-    const labelPosition = parseFloat(percentageFromValue) + labelOffset;
-    const activeCx = this.scaleRadial(labelPosition) * cos;
-    const activeCy = this.scaleRadial(labelPosition) * sin;
+    const labelPosition = parseFloat(percentageFromValue);
+    const activeCx = (this.scaleRadial(labelPosition) + labelOffset) * cos;
+    const activeCy = (this.scaleRadial(labelPosition) + labelOffset) * sin;
 
     const textAnchor =
       labelShouldRenderInside && cx < widthRange && cx > -widthRange ? 'middle' :
@@ -245,7 +241,7 @@ class HGraph extends Component {
       'middle';
 
       return {
-        key: d.label.replace(/\s/g,''),
+        key: d.id,
         value: d.value,
         angle: d.angle,
         cx: d.cx || cx,
@@ -403,11 +399,11 @@ class HGraph extends Component {
     return (
       <g>
         { /* NOTE: totalArc just here for dev purposes for now */ }
-        {/* <path
+        <path
           d={ totalArc() }
           fill={'#000' }
           fillOpacity=".05">
-        </path> */}
+        </path>
         <path
           d={ healthyArc() }
           fill={ this.props.healthyRangeFillColor }
@@ -421,11 +417,11 @@ class HGraph extends Component {
     return (
       <g>
         {this.state.data.map((d, i) => {
-          const x = this.scaleRadial(this.absoluteMax * this.props.axisLabelOffset) * Math.cos(d.angle - Math.PI / 2);
-          const y = this.scaleRadial(this.absoluteMax * this.props.axisLabelOffset) * Math.sin(d.angle - Math.PI / 2);
+          const x = (this.scaleRadial(this.absoluteMax) + this.props.axisLabelOffset) * Math.cos(d.angle - Math.PI / 2);
+          const y = (this.scaleRadial(this.absoluteMax) + this.props.axisLabelOffset) * Math.sin(d.angle - Math.PI / 2);
 
           return (
-            <g key={ d.label }>
+            <g key={ d.id }>
               <Text
                 x={ x }
                 y={ y }
@@ -579,7 +575,8 @@ class HGraph extends Component {
                                       fontSize={ globalState.fontSize }
                                       verticalAnchor={ data.verticalAnchor }
                                       textAnchor={ data.textAnchor }
-                                      fill={ data.fontColor }>
+                                      fill={ data.fontColor }
+                                      style={{ pointerEvents: 'none' }}>
                                       { `${data.value} ${data.unitLabel}` }
                                     </Text>
                                   </g>
