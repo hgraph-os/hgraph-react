@@ -93,7 +93,8 @@ class HGraph extends Component {
       zoomFactor: 1,
       points: points,
       path: this.assemblePath(points),
-      suppressTransition: true
+      animatingChildren: false,
+      suppressTransition: false
     };
 
     this.Format = format('.0%');
@@ -345,6 +346,7 @@ class HGraph extends Component {
       returnIntrimData: intrimData,
       returnIntrimPoints: intrimPoints,
       returnIntrimPath: intrimPath,
+      animatingChildren: true,
       suppressTransition: true
     }, () => {
       this.setState({
@@ -366,6 +368,7 @@ class HGraph extends Component {
         data: this.state.returnIntrimData,
         points: this.state.returnIntrimPoints,
         path: this.state.returnIntrimPath,
+        animatingChildren: true,
         suppressTransition: false,
       }, () => {
         setTimeout(() => {
@@ -376,7 +379,13 @@ class HGraph extends Component {
             returnIntrimData: null,
             returnIntrimPoints: null,
             returnIntrimPath: null,
+            animatingChildren: true,
             suppressTransition: true
+          }, () => {
+            this.setState({
+              animatingChildren: false,
+              suppressTransition: false
+            });
           });
         }, this.props.zoomTransitionTime + 50);
       });
@@ -385,7 +394,13 @@ class HGraph extends Component {
         data: finalData,
         points: finalPoints,
         path: finalPath,
+        animatingChildren: true,
         suppressTransition: true
+      }, () => {
+        this.setState({
+          animatingChildren: false,
+          suppressTransition: false
+        });
       });
     }
   }
@@ -489,12 +504,14 @@ class HGraph extends Component {
             {
               cx: this.state.suppressTransition ? d.cx : [d.cx],
               cy: this.state.suppressTransition ? d.cy : [d.cy],
+              color: [d.color],
               r: !zoomed && d.isChild ? [1] : d.isChild ? [radius * .75] : [radius],
               opacity: !zoomed && d.isChild ? [0] : [1],
               timing: {
                 duration: this.props.zoomTransitionTime,
                 ease: d.isChild ? easeElastic : easeExp,
                 delay:
+                  !this.state.animatingChildren ? 0 :
                   (zoomed && !d.isChild) ? 0 :
                   (zoomed && d.isChild) ? this.props.zoomTransitionTime :
                   (!zoomed && !d.isChild) ? this.props.zoomTransitionTime :
@@ -525,7 +542,7 @@ class HGraph extends Component {
                     <circle
                       className="polygon__point"
                       r={ state.r }
-                      fill={ data.color }
+                      fill={ state.color || data.color }
                       cx={ state.cx }
                       cy={ state.cy }
                       opacity={ state.opacity }
@@ -581,14 +598,29 @@ class HGraph extends Component {
                 update={[
                   {
                     d: this.state.suppressTransition ? this.state.path : [this.state.path],
-                    timing: { duration: this.props.zoomTransitionTime, ease: easeElastic, delay: this.state.zoomed ? this.props.zoomTransitionTime : 0 }
+                    timing: {
+                      duration: this.props.zoomTransitionTime,
+                      ease: this.state.animatingChildren ? easeElastic : easeExp,
+                      delay: this.state.animatingChildren && this.state.zoomed ? this.props.zoomTransitionTime : 0
+                    },
+                    events: {
+                      end() {
+                        this.setState({
+                          animatingChildren: false
+                        });
+                      }
+                    }
                   },
                   {
                     zoomFactor: [this.state.zoomFactor],
                     zoomCoords: [this.state.zoomCoords],
                     fontSize: [this.props.fontSize / this.state.zoomFactor],
                     pointRadius: [this.props.pointRadius / this.state.zoomFactor],
-                    timing: { duration: this.props.zoomTransitionTime, ease: easeExp, delay: this.state.zoomed ? 0 : this.props.zoomTransitionTime }
+                    timing: {
+                      duration: this.props.zoomTransitionTime,
+                      ease: easeExp,
+                      delay: this.state.zoomed ? 0 : this.props.zoomTransitionTime
+                    }
                   }
                 ]}>
                 {(globalState) => {
