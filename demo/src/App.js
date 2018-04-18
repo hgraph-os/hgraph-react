@@ -75,16 +75,16 @@ class App extends Component {
 
     return (
       <div className="App">
-        { /* TODO: Why does animation only happen when zoomed in? */ }
-        <HGraph
-          data={ this.state.currentYearData.data }
-          score={ this.state.currentYearData.score }
-          width={ size }
-          height={ size }
-          fontSize={ size < 300 ? 12 : 16 }
-          pointRadius={ size < 300 ? 5 : 10 }
-          scoreFontSize={ size < 300 ? 60 : 120 }/>
-
+        <div className="vis-container">
+          <HGraph
+            data={ this.state.currentYearData.data }
+            score={ this.state.currentYearData.score }
+            width={ size }
+            height={ size }
+            fontSize={ size < 300 ? 12 : 16 }
+            pointRadius={ size < 300 ? 5 : 10 }
+            scoreFontSize={ size < 300 ? 60 : 120 }/>
+        </div>
         <div className="controls">
           { /* TODO: Should have an option to disable point clicks entirely for these small ones */ }
           { this.state.yearData.map((data, i) => (
@@ -92,17 +92,18 @@ class App extends Component {
               key={ data.label }
               className="control"
               onClick={ this.setYearData(i) }>
-              <span className="control__label">{ data.label }</span>
               <HGraph
                 data={ data.data }
                 score={ data.score }
+                healthyRangeFillColor={ data.label === this.state.currentYearData.label ? '#b0a9ff' : '#98bd8e' }
                 width={ 100 }
                 height={ 100 }
                 margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
                 showScore={ false }
                 showAxisLabel={ false }
                 pointRadius={ 2 }
-                scoreFontSize={ 18 }/>
+                scoreFontSize={ 18 } />
+              <span className="control__label">{ data.label }</span>
             </button>
           )) }
         </div>
