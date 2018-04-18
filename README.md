@@ -43,6 +43,7 @@ Most props are not required and have sensible defaults built in, as listed below
 | scoreFontColor | string (hex color code) | false | The color of the hGraph score. | '#000' |
 | zoomFactor | number | false | The multiplier factor hGraph should zoom in. | 2.25 |
 | zoomTransitionTime | number | false | The amount of time (in milliseconds) the zooming animation should take. | 750 |
+| zoomOnPointClick | boolean | false | Configure if hGraph should zoom in/focus on a clicked point and display child points in the graph. | true |
 
 
 ### hGraph Metric Object Properties <a name="metrics"></a>

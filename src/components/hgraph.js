@@ -48,7 +48,8 @@ class HGraph extends Component {
     scoreFontSize: PropTypes.number,
     scoreFontColor: PropTypes.string,
     zoomFactor: PropTypes.number,
-    zoomTransitionTime: PropTypes.number
+    zoomTransitionTime: PropTypes.number,
+    zoomOnPointClick: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -73,7 +74,8 @@ class HGraph extends Component {
     scoreFontSize: 120,
     scoreFontColor: '#000',
     zoomFactor: 2.25,
-    zoomTransitionTime: 750
+    zoomTransitionTime: 750,
+    zoomOnPointClick: true,
   }
 
   constructor(props) {
@@ -173,26 +175,28 @@ class HGraph extends Component {
   }
 
   handlePointClick = (d) => (e) => {
-    e.stopPropagation();
+    if (this.props.zoomOnPointClick) {
+      e.stopPropagation();
 
-    const cos = Math.cos(d.angle - Math.PI / 2);
-    const sin = Math.sin(d.angle - Math.PI / 2);
+      const cos = Math.cos(d.angle - Math.PI / 2);
+      const sin = Math.sin(d.angle - Math.PI / 2);
 
-    const cx = this.scaleRadial(.5) * cos;
-    const cy = this.scaleRadial(.5) * sin;
+      const cx = this.scaleRadial(.5) * cos;
+      const cy = this.scaleRadial(.5) * sin;
 
-    if (this.state.zoomed && d.key === this.state.activePointId) {
-      this.zoomOut();
-    } else {
-      if (!this.state.zoomed) {
-        this.addChildren();
+      if (this.state.zoomed && d.key === this.state.activePointId) {
+        this.zoomOut();
+      } else {
+        if (!this.state.zoomed) {
+          this.addChildren();
+        }
+        this.setState({
+          activePointId: d.key,
+          zoomed: true,
+          zoomCoords: [cx, cy],
+          zoomFactor: this.props.zoomFactor
+        });
       }
-      this.setState({
-        activePointId: d.key,
-        zoomed: true,
-        zoomCoords: [cx, cy],
-        zoomFactor: this.props.zoomFactor
-      });
     }
   }
 

@@ -83,10 +83,9 @@ class App extends Component {
             height={ size }
             fontSize={ size < 300 ? 12 : 16 }
             pointRadius={ size < 300 ? 5 : 10 }
-            scoreFontSize={ size < 300 ? 60 : 120 }/>
+            scoreFontSize={ size < 300 ? 60 : 120 } />
         </div>
         <div className="controls">
-          { /* TODO: Should have an option to disable point clicks entirely for these small ones */ }
           { this.state.yearData.map((data, i) => (
             <button
               key={ data.label }
@@ -102,7 +101,8 @@ class App extends Component {
                 showScore={ false }
                 showAxisLabel={ false }
                 pointRadius={ 2 }
-                scoreFontSize={ 18 } />
+                scoreFontSize={ 18 }
+                zoomOnPointClick={ false } />
               <span className="control__label">{ data.label }</span>
             </button>
           )) }
