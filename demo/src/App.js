@@ -69,6 +69,11 @@ class App extends Component {
     })
   }
 
+  handlePointClick = (data, event) => {
+    console.log(data);
+    console.log(event);
+  }
+
   render() {
     const sizeBasedOnWindow = ((this.state.windowWidth / 3) * 2);
     const size = sizeBasedOnWindow > 600 ? 600 : sizeBasedOnWindow;
@@ -83,7 +88,8 @@ class App extends Component {
             height={ size }
             fontSize={ size < 300 ? 12 : 16 }
             pointRadius={ size < 300 ? 5 : 10 }
-            scoreFontSize={ size < 300 ? 60 : 120 } />
+            scoreFontSize={ size < 300 ? 60 : 120 }
+            onPointClick={this.handlePointClick} />
         </div>
         <div className="controls">
           { this.state.yearData.map((data, i) => (

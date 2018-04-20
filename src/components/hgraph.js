@@ -50,6 +50,7 @@ class HGraph extends Component {
     zoomFactor: PropTypes.number,
     zoomTransitionTime: PropTypes.number,
     zoomOnPointClick: PropTypes.bool,
+    onPointClick: PropTypes.func,
   };
 
   static defaultProps = {
@@ -198,6 +199,10 @@ class HGraph extends Component {
         });
       }
     }
+
+    if (this.props.onPointClick) {
+      this.props.onPointClick(d.originalData, e);
+    }
   }
 
   zoomOut = () => {
@@ -243,22 +248,27 @@ class HGraph extends Component {
         : cy > this.labelConfigurationHeightCutoff ? 'start'
         : 'middle';
 
-      return {
-        key: d.id,
-        value: d.value,
-        angle: d.angle,
-        cx: d.cx || cx,
-        cy: d.cy || cy,
-        activeCx,
-        activeCy,
-        color: this.thresholdColor(percentageFromValue, this.props.color),
-        fontColor: this.thresholdColor(percentageFromValue, this.props.fontColor),
-        unitLabel: d.unitLabel,
-        textAnchor,
-        verticalAnchor,
-        isChild: d.isChild || false,
-        children: d.children || null
-      };
+    const originalData = Object.assign({}, d);
+    delete originalData.angle;
+    delete originalData.isChild;
+
+    return {
+      key: d.id,
+      value: d.value,
+      angle: d.angle,
+      cx: d.cx || cx,
+      cy: d.cy || cy,
+      activeCx,
+      activeCy,
+      color: this.thresholdColor(percentageFromValue, this.props.color),
+      fontColor: this.thresholdColor(percentageFromValue, this.props.fontColor),
+      unitLabel: d.unitLabel,
+      textAnchor,
+      verticalAnchor,
+      isChild: d.isChild || false,
+      children: d.children || null,
+      originalData
+    };
   }
 
   assemblePath = (points) => {

@@ -44,6 +44,7 @@ Most props are not required and have sensible defaults built in, as listed below
 | zoomFactor | number | false | The multiplier factor hGraph should zoom in. | 2.25 |
 | zoomTransitionTime | number | false | The amount of time (in milliseconds) the zooming animation should take. | 750 |
 | zoomOnPointClick | boolean | false | Configure if hGraph should zoom in/focus on a clicked point and display child points in the graph. | true |
+| onPointClick | function | false | Callback function called when a point is clicked. Function is passed 2 arguments: the data object corresponding to the point clicked, and the event. | N/A |
 
 
 ### hGraph Metric Object Properties <a name="metrics"></a>
