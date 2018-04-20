@@ -38,11 +38,14 @@ Most props are not required and have sensible defaults built in, as listed below
 | pointRadius | number | false | The radius (in pixels) of the points for metric values. | 10 |
 | pointLabelWrapWidth | number | false | The width (in pixels) that the point labels should wrap text at. | null (no wrapping) |
 | pointLabelOffset | number | false | The distance (in pixels) that point labels should be offset from the point. | 8 |
+| hitboxRadius | number | false | The radius (in pixels) of the point hitboxes. (hGraph overlays a transparent hitbox over each point which can help users accurately click/touch points, particularly on mobile devices.) | Defaults to `props.pointRadius` size. |
 | showScore | boolean | false | Whether or not to display the overall score in the middle of hGraph. | true |
 | scoreFontSize | number | false | The size (in pixels) of the font for the overall hGraph score | 120 |
 | scoreFontColor | string (hex color code) | false | The color of the hGraph score. | '#000' |
 | zoomFactor | number | false | The multiplier factor hGraph should zoom in. | 2.25 |
 | zoomTransitionTime | number | false | The amount of time (in milliseconds) the zooming animation should take. | 750 |
+| zoomOnPointClick | boolean | false | Configure if hGraph should zoom in/focus on a clicked point and display child points in the graph. | true |
+| onPointClick | function | false | Callback function called when a point is clicked. Function is passed 2 arguments: the data object corresponding to the point clicked, and the event. | N/A |
 
 
 ### hGraph Metric Object Properties <a name="metrics"></a>
