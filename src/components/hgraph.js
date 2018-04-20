@@ -44,6 +44,7 @@ class HGraph extends Component {
     pointRadius: PropTypes.number,
     pointLabelOffset: PropTypes.number,
     pointLabelWrapWidth: PropTypes.number,
+    hitboxRadius: PropTypes.number,
     showScore: PropTypes.bool,
     scoreFontSize: PropTypes.number,
     scoreFontColor: PropTypes.string,
@@ -559,7 +560,14 @@ class HGraph extends Component {
                       fill={ state.color || data.color }
                       cx={ state.cx }
                       cy={ state.cy }
-                      opacity={ state.opacity }
+                      opacity={ state.opacity }>
+                    </circle>
+                    <circle
+                      className="polygon__point-hitbox"
+                      r={ this.props.hitboxRadius || state.r }
+                      cx={ state.cx }
+                      cy={ state.cy }
+                      opacity="0"
                       onClick={ this.handlePointClick(data) }>
                     </circle>
                     <Text
