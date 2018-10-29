@@ -60,3 +60,8 @@ Most props are not required and have sensible defaults built in, as listed below
 | absoluteMax | number | true | A reasonable maximum possible value for this metric. Note: values above this absolute maximum will be clamped to the max. |
 | unitLabel | string | true | The units the metric is measured in, displayed with the metric value. |
 | children | array | false | Optional array of child metrics that comprise this metric. Children metrics should conform to hGraph Metric Objects properties. Children are shown when a point is clicked and hGraph is in the "zoomed in" state. |
+
+
+### License ###
+
+hGraph is [Apache 2.0](https://github.com/goinvo/hGraph/blob/master/LICENSE) licensed.
