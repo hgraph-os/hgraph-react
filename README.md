@@ -1,6 +1,8 @@
 # hGraph React
 An open source visualization for patient health data, as a React component using d3.
 
+See the core [hGraph repo](https://github.com/goinvo/hGraph) for more examples and roadmap.
+
 ## This project is still in development. Look for production-ready v1.0.0 in early spring 2018.
 
 ## Installation
