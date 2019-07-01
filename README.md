@@ -5,6 +5,8 @@ View the React based [demo](https://goinvo.github.io/hgraph-react/) for this rep
 
 See the core [hGraph repo](https://github.com/goinvo/hGraph) for more examples and roadmap.
 
+Looking for React Native? Check out the [port to React Native](https://github.com/CitizenHealth/react-native-hgraph) from Citizen Health.
+
 ![hGraph](https://github.com/goinvo/hGraph/blob/master/docs/hgraph.png)
 
 ## Installation
