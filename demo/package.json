@@ -9,7 +9,7 @@
   },
   "devDependencies": {
     "gh-pages": "^1.1.0",
-    "react-scripts": "1.1.4"
+    "react-scripts": "3.4.1"
   },
   "scripts": {
     "predeploy": "yarn run build",
