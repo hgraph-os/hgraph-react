@@ -67,7 +67,7 @@ class HGraph extends Component {
     fontColor: '#000',
     showAxisLabel: true,
     axisLabelOffset: 12,
-    axisLabelWrapWidth: 80,
+    axisLabelWrapWidth: 120,
     areaOpacity: 0.25,
     pointRadius: 10,
     pointLabelOffset: 8,

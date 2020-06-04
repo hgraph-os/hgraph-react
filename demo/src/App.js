@@ -75,7 +75,7 @@ class App extends Component {
   }
 
   render() {
-    const sizeBasedOnWindow = ((this.state.windowWidth / 3) * 2);
+    const sizeBasedOnWindow = ((this.state.windowWidth / 4) * 2);
     const size = sizeBasedOnWindow > 600 ? 600 : sizeBasedOnWindow;
 
     return (
@@ -88,10 +88,10 @@ class App extends Component {
             height={ size }
             fontSize={ size < 300 ? 12 : 16 }
             pointRadius={ size < 300 ? 5 : 10 }
-            scoreFontSize={ size < 300 ? 60 : 120 }
+            scoreFontSize={ size < 300 ? 50 : 120 }
             onPointClick={this.handlePointClick} />
         </div>
-        <div className="controls">
+        {/* <div className="controls">
           { this.state.yearData.map((data, i) => (
             <button
               key={ data.label }
@@ -112,7 +112,7 @@ class App extends Component {
               <span className="control__label">{ data.label }</span>
             </button>
           )) }
-        </div>
+        </div> */}
       </div>
     );
   }
