@@ -16,7 +16,7 @@ $ yarn add hgraph-react
 # or
 $ npm install hgraph-react
 ```
-The hGraph component is packaged using [webpack](https://webpack.js.org/).
+The hGraph component is packaged using [webpack](https://webpack.js.org/). 
 
 ## Usage
 
