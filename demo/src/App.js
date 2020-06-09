@@ -1,8 +1,12 @@
 import React, { Component } from 'react';
-import HGraph, { hGraphConvert, calculateHealthScore } from 'hgraph-react'; // symlinked with 'yarn link' from project root.
+import HGraph, {
+  History,
+  hGraphConvert,
+  calculateHealthScore
+} from 'hgraph-react'; // symlinked with 'yarn link' from project root.
 
 import data2017 from "./data/2017.json";
-import data2018 from "./data/2018.json";
+// import data2018 from "./data/2018.json";
 
 import './App.css';
 
@@ -11,7 +15,7 @@ class App extends Component {
     super(props);
 
     const converted2017 = this.convertDataSet(data2017);
-    const converted2018 = this.convertDataSet(data2018);
+    // const converted2018 = this.convertDataSet(data2018);
 
     const yearData = [
       {
@@ -19,19 +23,23 @@ class App extends Component {
         data: converted2017,
         score: parseInt(calculateHealthScore(converted2017), 10)
       },
-      {
-        label: '2018',
-        data: converted2018,
-        score: parseInt(calculateHealthScore(converted2018), 10)
-      }
+      // {
+      //   label: '2018',
+      //   data: converted2018,
+      //   score: parseInt(calculateHealthScore(converted2018), 10)
+      // }
     ];
 
 
     this.state = {
       windowWidth: window.innerWidth,
       yearData,
-      currentYearData: yearData[0]
+      data: yearData[0],
+      historyOpen: false,
+      historyData: yearData[0].data[0],
     }
+
+    this.card = React.createRef();
   }
 
   convertDataSet = (data) => {
@@ -53,10 +61,12 @@ class App extends Component {
   componentDidMount() {
     this.updateWindowDimensions();
     window.addEventListener('resize', this.updateWindowDimensions);
+    document.addEventListener('mousedown', this.handleClick);
   }
 
   componentWillUnmount() {
     window.removeEventListener('resize', this.updateWindowDimensions);
+    document.removeEventListener('mousedown', this.handleClick);
   }
 
   updateWindowDimensions = () => {
@@ -65,31 +75,53 @@ class App extends Component {
 
   setYearData = (index) => (e) => {
     this.setState({
-      currentYearData: this.state.yearData[index]
+      data: this.state.yearData[index]
     })
   }
 
   handlePointClick = (data, event) => {
-    console.log(data);
-    console.log(event);
+    this.setState({
+      historyOpen: true,
+      historyData: data,
+    })
+  }
+
+  handleClick = (e) => {
+    if (this.state.historyOpen && this.card.current && !this.card.current.contains(e.target)) {
+      this.setState({ historyOpen: false })
+    }
   }
 
   render() {
-    const sizeBasedOnWindow = ((this.state.windowWidth / 4) * 2);
+    const sizeBasedOnWindow = this.state.windowWidth / 2;
     const size = sizeBasedOnWindow > 600 ? 600 : sizeBasedOnWindow;
+    const historySize = this.card.current ? this.card.current.clientWidth - 20 : 0;
 
     return (
       <div className="App">
-        <div className="vis-container">
+        <div className="vis-container" style={{ height: this.state.historyOpen ? '50vh' : '100vh' }}>
           <HGraph
-            data={ this.state.currentYearData.data }
-            score={ this.state.currentYearData.score }
+            data={ this.state.data.data }
+            score={ this.state.data.score }
             width={ size }
             height={ size }
             fontSize={ size < 300 ? 12 : 16 }
             pointRadius={ size < 300 ? 5 : 10 }
             scoreFontSize={ size < 300 ? 50 : 120 }
-            onPointClick={this.handlePointClick} />
+            onPointClick={this.handlePointClick}
+            zoomOnPointClick={false}
+          />
+        </div>
+        <div className="card" style={{ top: this.state.historyOpen ? '50vh' : '100vh' }} ref={this.card}>
+          <div>
+            <p>{ this.state.historyData.label }</p>
+            <p>{ this.state.historyData.value } { this.state.historyData.unitLabel }</p>
+            <History
+              width={ historySize }
+              height={ historySize / 4 }
+              data={this.state.historyData}
+            />
+          </div>
         </div>
         {/* <div className="controls">
           { this.state.yearData.map((data, i) => (

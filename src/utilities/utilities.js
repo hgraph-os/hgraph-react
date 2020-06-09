@@ -3,10 +3,12 @@ import { scaleLinear } from 'd3-scale';
 
 const hGraphConvert = (gender, metric, data) => {
   const metricObj = metrics[gender][metric];
+  const sortedValues = data.values.sort((a, b) => new Date(a.date) - new Date(b.date));
 
   return {
     label: data.label || metricObj.label,
-    value: data.value,
+    value: sortedValues[sortedValues.length - 1].value,
+    values: sortedValues,
     healthyMin: data.healthyMin || metricObj.healthyRange[0],
     healthyMax: data.healthyMax || metricObj.healthyRange[1],
     absoluteMin: data.absoluteMin || metricObj.absoluteRange[0],
