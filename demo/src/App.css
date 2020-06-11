@@ -1,6 +1,6 @@
 .vis-container {
   height: 100vh;
-  align-items: center;
+  align-items: flex-start;
   transition: height 200ms ease-in-out;
 }
 
@@ -34,6 +34,11 @@
   box-shadow: 0px 0px 15px 0px rgba(0, 0, 0, 0.1);
   transform: translateX(-50%);
   transition: top 200ms ease-in-out;
+}
+
+.hgraph__axis-label,
+.polygon__hitbox {
+  cursor: pointer;
 }
 
 @media (min-width: 1000px) {

@@ -202,7 +202,7 @@ class HGraph extends Component {
     }
 
     if (this.props.onPointClick) {
-      this.props.onPointClick(d.originalData, e);
+      this.props.onPointClick(d.originalData ? d.originalData : d, e);
     }
   }
 
@@ -462,7 +462,7 @@ class HGraph extends Component {
           const y = (this.scaleRadial(this.absoluteMax) + this.props.axisLabelOffset) * Math.sin(d.angle - Math.PI / 2);
 
           return (
-            <g key={ d.id }>
+            <g key={ d.id } className="hgraph__axis-label">
               <Text
                 x={ x }
                 y={ y }
@@ -470,7 +470,8 @@ class HGraph extends Component {
                 verticalAnchor={ y > 100 ? "start" : y < 100 ? "end" : "middle" }
                 textAnchor={ x > 10 ? "start" : x < -10 ? "end" : "middle" }
                 width={ this.props.axisLabelWrapWidth }
-                fill={ this.props.fontColor }>
+                fill={ this.props.fontColor }
+                onClick={ this.handlePointClick(d) }>
                 { d.label }
               </Text>
             </g>
