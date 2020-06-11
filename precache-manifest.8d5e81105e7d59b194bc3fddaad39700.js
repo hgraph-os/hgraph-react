@@ -1,10 +1,10 @@
 self.__precacheManifest = (self.__precacheManifest || []).concat([
   {
-    "revision": "e91f6fc38e330b10df9d7a9200305bec",
+    "revision": "b7796e45f797bf2b4493993ff8a21149",
     "url": "/hgraph-react/index.html"
   },
   {
-    "revision": "489b66bf919e4f700553",
+    "revision": "5e5cf56370ebcfc064d5",
     "url": "/hgraph-react/static/css/main.20e2ac59.chunk.css"
   },
   {
@@ -16,12 +16,12 @@ self.__precacheManifest = (self.__precacheManifest || []).concat([
     "url": "/hgraph-react/static/js/2.ec936fd0.chunk.js.LICENSE.txt"
   },
   {
-    "revision": "489b66bf919e4f700553",
-    "url": "/hgraph-react/static/js/main.20d88719.chunk.js"
+    "revision": "5e5cf56370ebcfc064d5",
+    "url": "/hgraph-react/static/js/main.364827f8.chunk.js"
   },
   {
     "revision": "818ff90ed527a211fb61ab1d2622aa8c",
-    "url": "/hgraph-react/static/js/main.20d88719.chunk.js.LICENSE.txt"
+    "url": "/hgraph-react/static/js/main.364827f8.chunk.js.LICENSE.txt"
   },
   {
     "revision": "c1b4c02865e25a2ae1e0",
