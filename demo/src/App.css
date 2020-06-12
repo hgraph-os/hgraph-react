@@ -41,6 +41,10 @@
   cursor: pointer;
 }
 
+.hgraph-history__date {
+  fill: #616363;
+}
+
 @media (min-width: 1000px) {
   .card {
     width: 50%;

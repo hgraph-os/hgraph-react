@@ -118,7 +118,7 @@ class App extends Component {
             <p>{ this.state.historyData.value } { this.state.historyData.unitLabel }</p>
             <History
               width={ historySize }
-              height={ historySize / 4 }
+              height={ historySize > 500 ? historySize / 4 : historySize / 2 }
               data={this.state.historyData}
             />
           </div>
