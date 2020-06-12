@@ -1,23 +1,23 @@
 {
   "files": {
-    "main.css": "/hgraph-react/static/css/main.20e2ac59.chunk.css",
-    "main.js": "/hgraph-react/static/js/main.364827f8.chunk.js",
-    "main.js.map": "/hgraph-react/static/js/main.364827f8.chunk.js.map",
+    "main.css": "/hgraph-react/static/css/main.5859166c.chunk.css",
+    "main.js": "/hgraph-react/static/js/main.8f04805c.chunk.js",
+    "main.js.map": "/hgraph-react/static/js/main.8f04805c.chunk.js.map",
     "runtime-main.js": "/hgraph-react/static/js/runtime-main.297c2235.js",
     "runtime-main.js.map": "/hgraph-react/static/js/runtime-main.297c2235.js.map",
     "static/js/2.ec936fd0.chunk.js": "/hgraph-react/static/js/2.ec936fd0.chunk.js",
     "static/js/2.ec936fd0.chunk.js.map": "/hgraph-react/static/js/2.ec936fd0.chunk.js.map",
     "index.html": "/hgraph-react/index.html",
-    "precache-manifest.8d5e81105e7d59b194bc3fddaad39700.js": "/hgraph-react/precache-manifest.8d5e81105e7d59b194bc3fddaad39700.js",
+    "precache-manifest.27f032c647e578c6f00f10042e698971.js": "/hgraph-react/precache-manifest.27f032c647e578c6f00f10042e698971.js",
     "service-worker.js": "/hgraph-react/service-worker.js",
-    "static/css/main.20e2ac59.chunk.css.map": "/hgraph-react/static/css/main.20e2ac59.chunk.css.map",
+    "static/css/main.5859166c.chunk.css.map": "/hgraph-react/static/css/main.5859166c.chunk.css.map",
     "static/js/2.ec936fd0.chunk.js.LICENSE.txt": "/hgraph-react/static/js/2.ec936fd0.chunk.js.LICENSE.txt",
-    "static/js/main.364827f8.chunk.js.LICENSE.txt": "/hgraph-react/static/js/main.364827f8.chunk.js.LICENSE.txt"
+    "static/js/main.8f04805c.chunk.js.LICENSE.txt": "/hgraph-react/static/js/main.8f04805c.chunk.js.LICENSE.txt"
   },
   "entrypoints": [
     "static/js/runtime-main.297c2235.js",
     "static/js/2.ec936fd0.chunk.js",
-    "static/css/main.20e2ac59.chunk.css",
-    "static/js/main.364827f8.chunk.js"
+    "static/css/main.5859166c.chunk.css",
+    "static/js/main.8f04805c.chunk.js"
   ]
 }
