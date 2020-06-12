@@ -33,11 +33,9 @@ export class History extends Component {
 
     const line = d3Line()
             .x((d) => xScale(new Date(d.date)))
-            .y((d) => {
-              d.value < this.props.data.healthyMin ? unhealthilyLowScale(d.value)
+            .y((d) => d.value < this.props.data.healthyMin ? unhealthilyLowScale(d.value)
               : d.value > this.props.data.healthyMax ? unhealthilyHighScale(d.value)
-              : healthyScale(d.value)
-            });
+              : healthyScale(d.value));
 
     return (
       <div className="hgraph-history">
