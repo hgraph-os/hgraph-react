@@ -1,13 +1,13 @@
 # hGraph React
 An open source visualization for patient health data, as a React component using d3.
 
-View the React based [demo](https://goinvo.github.io/hgraph-react/) for this repository.
+View the React based [demo](https://hgraph-os.github.io/hgraph-react/) for this repository.
 
 See the core [hGraph repo](https://github.com/goinvo/hGraph) for more examples and roadmap.
 
 Looking for React Native? Check out the [port to React Native](https://github.com/CitizenHealth/react-native-hgraph) from Citizen Health.
 
-![hGraph](https://github.com/goinvo/hGraph/blob/master/docs/hgraph.png)
+![hGraph](https://github.com/hgraph-os/hGraph/blob/master/docs/hgraph.png)
 
 ## Installation
 This package can be [found on npm](https://www.npmjs.com/package/hgraph-react) and installed like so:
@@ -70,6 +70,6 @@ Most props are not required and have sensible defaults built in, as listed below
 
 ### License ###
 
-hGraph is [Apache 2.0](https://github.com/goinvo/hGraph/blob/master/LICENSE) licensed.
+hGraph is [Apache 2.0](https://github.com/hgraph-os/hGraph/blob/master/LICENSE) licensed.
 
 ### For guidance integrating hGraph into your product or service, contact us at hello@goinvo.com. ###
