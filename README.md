@@ -7,7 +7,7 @@ See the core [hGraph repo](https://github.com/goinvo/hGraph) for more examples a
 
 Looking for React Native? Check out the [port to React Native](https://github.com/CitizenHealth/react-native-hgraph) from Citizen Health.
 
-![hGraph](https://github.com/hgraph-os/hGraph/blob/master/docs/hgraph.png)
+![hGraph](https://github.com/hgraph-os/hgraph-design/blob/master/docs/hgraph.png)
 
 ## Installation
 This package can be [found on npm](https://www.npmjs.com/package/hgraph-react) and installed like so:
