@@ -14,10 +14,12 @@
     "d3-scale": "^2.0.0",
     "d3-shape": "^1.2.0",
     "prop-types": "^15.6.0",
-    "react": "^16.2.0",
     "react-move": "^2.7.0",
     "react-svg-text": "^0.1.2",
     "webpack": "^3.11.0"
+  },
+  "peerDependencies": {
+    "react": "^16.13.0"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
