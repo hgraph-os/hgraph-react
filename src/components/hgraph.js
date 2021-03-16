@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { Component, useState } from 'react';
 import PropTypes from 'prop-types';
 import { arc } from 'd3-shape';
 import { format } from 'd3-format';
@@ -8,132 +8,56 @@ import Animate from 'react-move/Animate';
 import NodeGroup from 'react-move/NodeGroup';
 import Text from 'react-svg-text';
 
-class HGraph extends Component {
-  static propTypes = {
-    data: PropTypes.arrayOf(PropTypes.shape({
-      id: PropTypes.string.isRequired,
-      label: PropTypes.string.isRequired,
-      value: PropTypes.number.isRequired,
-      healthyMin: PropTypes.number.isRequired,
-      healthyMax: PropTypes.number.isRequired,
-      absoluteMin: PropTypes.number.isRequired,
-      absoluteMax: PropTypes.number.isRequired,
-      unitLabel: PropTypes.string.isRequired,
-      children: PropTypes.array
-    })).isRequired,
-    score: PropTypes.number,
-    color: PropTypes.string,
-    width: PropTypes.number,
-    height: PropTypes.number,
-    margin: PropTypes.shape({
-      top: PropTypes.number,
-      right: PropTypes.number,
-      bottom: PropTypes.number,
-      left: PropTypes.number
-    }),
-    thresholdMin: PropTypes.number,
-    thresholdMax: PropTypes.number,
-    donutHoleFactor: PropTypes.number,
-    healthyRangeFillColor: PropTypes.string,
-    fontSize: PropTypes.number,
-    fontColor: PropTypes.string,
-    showAxisLabel: PropTypes.bool,
-    axisLabelOffset: PropTypes.number,
-    axisLabelWrapWidth: PropTypes.number,
-    areaOpacity: PropTypes.number,
-    pointRadius: PropTypes.number,
-    pointLabelOffset: PropTypes.number,
-    pointLabelWrapWidth: PropTypes.number,
-    hitboxRadius: PropTypes.number,
-    showScore: PropTypes.bool,
-    scoreFontSize: PropTypes.number,
-    scoreFontColor: PropTypes.string,
-    zoomFactor: PropTypes.number,
-    zoomTransitionTime: PropTypes.number,
-    zoomOnPointClick: PropTypes.bool,
-    onPointClick: PropTypes.func,
-  };
+export function HGraph(props){
 
-  static defaultProps = {
-    width: 600,
-    height: 600,
-    color: '#616363',
-    margin: { top: 70, right: 100, bottom: 70, left: 100 },
-    thresholdMin: .25,
-    thresholdMax: .75,
-    donutHoleFactor: .4,
-    healthyRangeFillColor: '#98bd8e',
-    fontSize: 16,
-    fontColor: '#000',
-    showAxisLabel: true,
-    axisLabelOffset: 12,
-    axisLabelWrapWidth: 120,
-    areaOpacity: 0.25,
-    pointRadius: 10,
-    pointLabelOffset: 8,
-    pointLabelWrapWidth: null,
-    showScore: true,
-    scoreFontSize: 120,
-    scoreFontColor: '#000',
-    zoomFactor: 2.25,
-    zoomTransitionTime: 750,
-    zoomOnPointClick: true,
-  }
+  let absoluteMin = 0;
+  let absoluteMax = 1;
 
-  constructor(props) {
-    super(props);
+  let [state, setState] = useState({
+    data: props.data,
+    activePointId: '',
+    zoomed: false,
+    zoomCoords: [0, 0],
+    zoomFactor: 1,
+    points: points,
+    path: assemblePath(points),
+    animatingChildren: false,
+    suppressTransition: false
+  })
 
-    this.absoluteMin = 0;
-    this.absoluteMax = 1;
 
-    this.setGlobalConfig(props, false);
-    const points = this.assemblePoints(props.data);
+  const points = assemblePoints(props.data);
 
-    this.state = {
-      data: props.data,
-      activePointId: '',
-      zoomed: false,
-      zoomCoords: [0, 0],
-      zoomFactor: 1,
-      points: points,
-      path: this.assemblePath(points),
-      animatingChildren: false,
-      suppressTransition: false
-    };
 
-    this.Format = format('.0%');
-  }
 
-  componentWillReceiveProps(nextProps) {
-    // TODO: There may be a way to refine this a bit to occur less often
-    if (nextProps !== this.props) {
-      this.setGlobalConfig(nextProps);
-    }
-  }
+  setGlobalConfig(props, false);
 
-  setGlobalConfig = (props, shouldSetState = true) => {
-    this.labelConfigurationHeightCutoff = props.height / 6;
-    this.labelConfigurationWidthCutoff = props.width * .1;
-    this.radius = Math.min((props.width / 2), (props.height / 2));
-    this.rangeBottom = this.radius * this.props.donutHoleFactor;
-    this.angleSlice = (Math.PI * 2) / props.data.length;
 
-    this.scaleRadial = scaleLinear()
-      .domain([this.absoluteMin, this.absoluteMax])
-      .range([this.rangeBottom, this.radius]);
+
+
+  function setGlobalConfig(props, shouldSetState = true){
+    labelConfigurationHeightCutoff = props.height / 6;
+    labelConfigurationWidthCutoff = props.width * .1;
+    radius = Math.min((props.width / 2), (props.height / 2));
+    rangeBottom = radius * props.donutHoleFactor;
+    angleSlice = (Math.PI * 2) / props.data.length;
+
+    scaleRadial = scaleLinear()
+      .domain([absoluteMin, absoluteMax])
+      .range([rangeBottom, radius]);
 
     if (shouldSetState) {
-      const points = this.assemblePoints(props.data);
+      const points = assemblePoints(props.data);
 
-      this.setState({
+      setState({
         data: props.data,
         points,
-        path: this.assemblePath(points)
+        path: assemblePath(points)
       });
     }
   }
 
-  convertValueToHgraphPercentage = (valueObject) => {
+  function convertValueToHgraphPercentage(valueObject){
     const { value, healthyMin, healthyMax, absoluteMin, absoluteMax } = valueObject;
     let scale;
 
@@ -152,63 +76,65 @@ class HGraph extends Component {
     if (healthyMin === healthyMax && value === healthyMax) {
       // Possible rare case where only healthy "range" is a single value
       // and the current value is healthy
-      return this.props.thresholdMax - this.props.thresholdMin;
+      return props.thresholdMax - props.thresholdMin;
     }
     else if (value < healthyMin) {
       scale = scaleLinear()
         .domain([absoluteMin, healthyMin])
-        .range([this.absoluteMin, this.props.thresholdMin]);
+        .range([absoluteMin, props.thresholdMin]);
     } else if (value > healthyMax) {
       scale = scaleLinear()
         .domain([healthyMax, absoluteMax])
-        .range([this.props.thresholdMax, this.absoluteMax]);
+        .range([props.thresholdMax, absoluteMax]);
     } else {
       scale = scaleLinear()
         .domain([healthyMin, healthyMax])
-        .range([this.props.thresholdMin, this.props.thresholdMax]);
+        .range([props.thresholdMin, props.thresholdMax]);
     }
     return scale(value);
   }
 
-  handleSvgClick = (e) => {
-    if (this.state.zoomed) {
-      this.zoomOut();
+  function handleSvgClick(e){
+    if (state.zoomed) {
+      zoomOut();
     }
   }
 
-  handlePointClick = (d) => (e) => {
-    if (this.props.zoomOnPointClick) {
+  // this syntax seems overly clever
+  // function handlePointClick = (d) => (e) => {
+  function handlePointClick(d, e){
+    if (props.zoomOnPointClick) {
       e.stopPropagation();
 
       const cos = Math.cos(d.angle - Math.PI / 2);
       const sin = Math.sin(d.angle - Math.PI / 2);
 
-      const cx = this.scaleRadial(.5) * cos;
-      const cy = this.scaleRadial(.5) * sin;
+      const cx = scaleRadial(.5) * cos;
+      const cy = scaleRadial(.5) * sin;
 
-      if (this.state.zoomed && d.key === this.state.activePointId) {
-        this.zoomOut();
+      if (state.zoomed && d.key === state.activePointId) {
+        zoomOut();
       } else {
-        if (!this.state.zoomed) {
-          this.addChildren();
+        if (!state.zoomed) {
+          addChildren();
         }
-        this.setState({
+        setState({
           activePointId: d.key,
           zoomed: true,
           zoomCoords: [cx, cy],
-          zoomFactor: this.props.zoomFactor
+          zoomFactor: props.zoomFactor
         });
       }
     }
 
-    if (this.props.onPointClick) {
-      this.props.onPointClick(d.originalData ? d.originalData : d, e);
+    if (props.onPointClick) {
+      props.onPointClick(d.originalData ? d.originalData : d, e);
     }
   }
 
-  zoomOut = () => {
-    this.removeChildren();
-    this.setState({
+  function zoomOut(){
+    removeChildren();
+    setState({
       activePointId: '',
       zoomed: false,
       zoomCoords: [0, 0],
@@ -216,37 +142,37 @@ class HGraph extends Component {
     });
   }
 
-  buildPoint = (d, percentageFromValue) => {
+  function buildPoint(d, percentageFromValue){
     const cos = Math.cos(d.angle - Math.PI / 2);
     const sin = Math.sin(d.angle - Math.PI / 2);
 
-    const isAboveMidPoint = percentageFromValue > (this.props.thresholdMax - this.props.thresholdMin);
-    const isUnhealthilyHigh = percentageFromValue > this.props.thresholdMax;
+    const isAboveMidPoint = percentageFromValue > (props.thresholdMax - props.thresholdMin);
+    const isUnhealthilyHigh = percentageFromValue > props.thresholdMax;
 
-    const cx = this.scaleRadial(percentageFromValue) * cos;
-    const cy = this.scaleRadial(percentageFromValue) * sin;
+    const cx = scaleRadial(percentageFromValue) * cos;
+    const cy = scaleRadial(percentageFromValue) * sin;
 
-    const labelShouldRenderInside = isUnhealthilyHigh || (isAboveMidPoint && cy < this.labelConfigurationHeightCutoff && cy > -this.labelConfigurationHeightCutoff);
+    const labelShouldRenderInside = isUnhealthilyHigh || (isAboveMidPoint && cy < labelConfigurationHeightCutoff && cy > -labelConfigurationHeightCutoff);
 
-    const labelOffset = labelShouldRenderInside ? -this.props.pointLabelOffset : this.props.pointLabelOffset;
+    const labelOffset = labelShouldRenderInside ? -props.pointLabelOffset : props.pointLabelOffset;
     const labelPosition = parseFloat(percentageFromValue);
-    const activeCx = (this.scaleRadial(labelPosition) + labelOffset) * cos;
-    const activeCy = (this.scaleRadial(labelPosition) + labelOffset) * sin;
+    const activeCx = (scaleRadial(labelPosition) + labelOffset) * cos;
+    const activeCy = (scaleRadial(labelPosition) + labelOffset) * sin;
 
     const textAnchor =
-      labelShouldRenderInside && cx < this.labelConfigurationWidthCutoff && cx > -this.labelConfigurationWidthCutoff ? 'middle'
-        : labelShouldRenderInside && cx < -this.labelConfigurationWidthCutoff ? 'start'
-        : labelShouldRenderInside && cx > this.labelConfigurationWidthCutoff ? 'end'
-        : cx < -this.labelConfigurationWidthCutoff ? 'end'
-        : cx > this.labelConfigurationWidthCutoff ? 'start'
+      labelShouldRenderInside && cx < labelConfigurationWidthCutoff && cx > -labelConfigurationWidthCutoff ? 'middle'
+        : labelShouldRenderInside && cx < -labelConfigurationWidthCutoff ? 'start'
+        : labelShouldRenderInside && cx > labelConfigurationWidthCutoff ? 'end'
+        : cx < -labelConfigurationWidthCutoff ? 'end'
+        : cx > labelConfigurationWidthCutoff ? 'start'
         : 'middle';
 
     const verticalAnchor =
-      labelShouldRenderInside && cy < this.labelConfigurationHeightCutoff ? 'start'
-        : labelShouldRenderInside && cy > this.labelConfigurationHeightCutoff ? 'end'
+      labelShouldRenderInside && cy < labelConfigurationHeightCutoff ? 'start'
+        : labelShouldRenderInside && cy > labelConfigurationHeightCutoff ? 'end'
         : labelShouldRenderInside ? 'middle'
-        : cy < this.labelConfigurationHeightCutoff ? 'end'
-        : cy > this.labelConfigurationHeightCutoff ? 'start'
+        : cy < labelConfigurationHeightCutoff ? 'end'
+        : cy > labelConfigurationHeightCutoff ? 'start'
         : 'middle';
 
     const originalData = Object.assign({}, d);
@@ -261,8 +187,8 @@ class HGraph extends Component {
       cy: d.cy || cy,
       activeCx,
       activeCy,
-      color: this.thresholdColor(percentageFromValue, this.props.color),
-      fontColor: this.thresholdColor(percentageFromValue, this.props.fontColor),
+      color: thresholdColor(percentageFromValue, props.color),
+      fontColor: thresholdColor(percentageFromValue, props.fontColor),
       unitLabel: d.unitLabel,
       textAnchor,
       verticalAnchor,
@@ -272,7 +198,7 @@ class HGraph extends Component {
     };
   }
 
-  assemblePath = (points) => {
+  function assemblePath(points){
     let fillString = '';
 
     points.map((p, i) => {
@@ -282,30 +208,30 @@ class HGraph extends Component {
     return fillString;
   }
 
-  assemblePoints = (data, addingChildren = false) => {
+  function assemblePoints(data, addingChildren = false){
     const points = data.map((d, i) => {
-      const percentageFromValue = this.convertValueToHgraphPercentage(d);
-      d.angle = addingChildren && d.angle ? d.angle : this.angleSlice * i;
+      const percentageFromValue = convertValueToHgraphPercentage(d);
+      d.angle = addingChildren && d.angle ? d.angle : angleSlice * i;
 
-      return this.buildPoint(d, percentageFromValue);
+      return buildPoint(d, percentageFromValue);
     });
 
     return [].concat.apply([], points);
   }
 
-  assembleIntrimChildPointsForPoint = (point, dataIndex, distance, vector, angleSliceSubdivision) => {
+  function assembleIntrimChildPointsForPoint(point, dataIndex, distance, vector, angleSliceSubdivision){
     return point.children.map((c, i) => {
       const copy = Object.assign({}, c);
       const frac = 1 / angleSliceSubdivision;
       copy.cx = point.cx + (distance * (frac * (i + 1))) * vector[0];
       copy.cy = point.cy + (distance * (frac * (i + 1))) * vector[1];
       copy.isChild = true;
-      copy.angle = (this.angleSlice * dataIndex) + ((this.angleSlice / angleSliceSubdivision) * (i + 1));
+      copy.angle = (angleSlice * dataIndex) + ((angleSlice / angleSliceSubdivision) * (i + 1));
       return copy;
     });
   }
 
-  getDistanceAndVectorBetweenPoints(point, siblingPoint) {
+  function getDistanceAndVectorBetweenPoints(point, siblingPoint){
     const vector = [(siblingPoint.cx - point.cx), (siblingPoint.cy - point.cy)];
     const distance = Math.sqrt(Math.pow(vector[0], 2) + Math.pow(vector[1], 2));
     const vectorNormalized = [vector[0] / distance, vector[1] / distance];
@@ -316,25 +242,25 @@ class HGraph extends Component {
     }
   }
 
-  addChildren = () => {
+  function addChildren(){
     // Copy the state data
-    let finalData = this.state.data.map(d => d);
-    let intrimData = this.state.data.map(d => d);
+    let finalData = state.data.map(d => d);
+    let intrimData = state.data.map(d => d);
     let groupsInserted = 0;
 
     // For any point with children, build and add the child points
-    this.state.data.forEach((data, i) => {
+    state.data.forEach((data, i) => {
       if (data.children && data.children.length) {
         const dataIndex = i;
         const spliceIndex = dataIndex + 1 + groupsInserted;
-        const point = this.state.points[i];
-        const siblingPoint = this.state.points[dataIndex + 1];
+        const point = state.points[i];
+        const siblingPoint = state.points[dataIndex + 1];
         const angleSliceSubdivision = point.children.length + 1;
-        const { distance, vector } = this.getDistanceAndVectorBetweenPoints(point, siblingPoint);
-        const pointsIntrimChildren = this.assembleIntrimChildPointsForPoint(point, dataIndex, distance, vector, angleSliceSubdivision);
+        const { distance, vector } = getDistanceAndVectorBetweenPoints(point, siblingPoint);
+        const pointsIntrimChildren = assembleIntrimChildPointsForPoint(point, dataIndex, distance, vector, angleSliceSubdivision);
 
         point.children.map((c, i) => {
-          c.angle = (this.angleSlice * dataIndex) + ((this.angleSlice / angleSliceSubdivision) * (i + 1));
+          c.angle = (angleSlice * dataIndex) + ((angleSlice / angleSliceSubdivision) * (i + 1));
           c.isChild = true;
           return c;
         });
@@ -350,11 +276,11 @@ class HGraph extends Component {
     intrimData = [].concat.apply([], intrimData);
     finalData = [].concat.apply([], finalData);
 
-    const intrimPoints = this.assemblePoints(intrimData, true);
-    const intrimPath = this.assemblePath(intrimPoints);
-    const finalPoints = this.assemblePoints(finalData, true);
+    const intrimPoints = assemblePoints(intrimData, true);
+    const intrimPath = assemblePath(intrimPoints);
+    const finalPoints = assemblePoints(finalData, true);
 
-    this.setState({
+    setState({
       data: intrimData,
       points: intrimPoints,
       path: intrimPath,
@@ -364,30 +290,30 @@ class HGraph extends Component {
       animatingChildren: true,
       suppressTransition: true
     }, () => {
-      this.setState({
+      setState({
         data: finalData,
         points: finalPoints,
-        path: this.assemblePath(finalPoints),
+        path: assemblePath(finalPoints),
         suppressTransition: false
       });
     });
   }
 
-  removeChildren = () => {
-    const finalData = this.state.data.filter(d => !d.isChild);
-    const finalPoints = this.assemblePoints(finalData);
-    const finalPath = this.assemblePath(finalPoints);
+  function removeChildren(){
+    const finalData = state.data.filter(d => !d.isChild);
+    const finalPoints = assemblePoints(finalData);
+    const finalPath = assemblePath(finalPoints);
 
-    if (this.state.returnIntrimData) {
-      this.setState({
-        data: this.state.returnIntrimData,
-        points: this.state.returnIntrimPoints,
-        path: this.state.returnIntrimPath,
+    if (state.returnIntrimData) {
+      setState({
+        data: state.returnIntrimData,
+        points: state.returnIntrimPoints,
+        path: state.returnIntrimPath,
         animatingChildren: true,
         suppressTransition: false,
       }, () => {
         setTimeout(() => {
-          this.setState({
+          setState({
             data: finalData,
             points: finalPoints,
             path: finalPath,
@@ -397,22 +323,22 @@ class HGraph extends Component {
             animatingChildren: true,
             suppressTransition: true
           }, () => {
-            this.setState({
+            setState({
               animatingChildren: false,
               suppressTransition: false
             });
           });
-        }, this.props.zoomTransitionTime + 50);
+        }, props.zoomTransitionTime + 50);
       });
     } else {
-      this.setState({
+      setState({
         data: finalData,
         points: finalPoints,
         path: finalPath,
         animatingChildren: true,
         suppressTransition: true
       }, () => {
-        this.setState({
+        setState({
           animatingChildren: false,
           suppressTransition: false
         });
@@ -420,21 +346,21 @@ class HGraph extends Component {
     }
   }
 
-  thresholdColor = (value, color) => {
-    return (value < this.props.thresholdMin || value > this.props.thresholdMax) ? '#df6053' : color;
+  function thresholdColor(value, color){
+    return (value < props.thresholdMin || value > props.thresholdMax) ? '#df6053' : color;
   }
 
-  renderThreshold = () => {
+  function renderThreshold(){
     const tau = 2 * Math.PI;
     const healthyArc = arc()
-      .outerRadius(this.scaleRadial(this.props.thresholdMax))
-      .innerRadius(this.scaleRadial(this.props.thresholdMin))
+      .outerRadius(scaleRadial(props.thresholdMax))
+      .innerRadius(scaleRadial(props.thresholdMin))
       .startAngle(0)
       .endAngle(tau);
     // NOTE: totalArc just here for dev purposes for now
     const totalArc = arc()
-      .outerRadius(this.scaleRadial(0))
-      .innerRadius(this.scaleRadial(1))
+      .outerRadius(scaleRadial(0))
+      .innerRadius(scaleRadial(1))
       .startAngle(0)
       .endAngle(tau);
     return (
@@ -447,19 +373,19 @@ class HGraph extends Component {
         </path> */}
         <path
           d={ healthyArc() }
-          fill={ this.props.healthyRangeFillColor }
+          fill={ props.healthyRangeFillColor }
           fillOpacity="1">
         </path>
       </g>
     )
   }
 
-  renderAxisLabels = (fontSize) => {
+  function renderAxisLabels(fontSize){
     return (
       <g>
-        {this.state.data.map((d, i) => {
-          const x = (this.scaleRadial(this.absoluteMax) + this.props.axisLabelOffset) * Math.cos(d.angle - Math.PI / 2);
-          const y = (this.scaleRadial(this.absoluteMax) + this.props.axisLabelOffset) * Math.sin(d.angle - Math.PI / 2);
+        {state.data.map((d, i) => {
+          const x = (scaleRadial(absoluteMax) + props.axisLabelOffset) * Math.cos(d.angle - Math.PI / 2);
+          const y = (scaleRadial(absoluteMax) + props.axisLabelOffset) * Math.sin(d.angle - Math.PI / 2);
 
           return (
             <g key={ d.id } className="hgraph__axis-label">
@@ -469,9 +395,9 @@ class HGraph extends Component {
                 fontSize={ fontSize }
                 verticalAnchor={ y > 100 ? "start" : y < 100 ? "end" : "middle" }
                 textAnchor={ x > 10 ? "start" : x < -10 ? "end" : "middle" }
-                width={ this.props.axisLabelWrapWidth }
-                fill={ this.props.fontColor }
-                onClick={ this.handlePointClick(d) }>
+                width={ props.axisLabelWrapWidth }
+                fill={ props.fontColor }
+                onClick={ handlePointClick(d) }>
                 { d.label }
               </Text>
             </g>
@@ -481,16 +407,16 @@ class HGraph extends Component {
     )
   }
 
-  renderAxes = (fontSize) => {
+  function renderAxes(fontSize){
     return (
       <g>
-        { this.renderThreshold() }
-        { this.props.showAxisLabel ? this.renderAxisLabels(fontSize) : null }
+        { renderThreshold() }
+        { props.showAxisLabel ? renderAxisLabels(fontSize) : null }
       </g>
     )
   }
 
-  renderPoints = (points, globalState) => {
+  function renderPoints(points, globalState){
     return (
       <NodeGroup
         data={ points }
@@ -500,7 +426,7 @@ class HGraph extends Component {
             cx: d.cx,
             cy: d.cy,
             textOpacity: 0,
-            r: d.isChild ? 0 : this.props.pointRadius / this.state.zoomFactor,
+            r: d.isChild ? 0 : props.pointRadius / state.zoomFactor,
             opacity: d.isChild ? 0 : 1
           }
         }}
@@ -509,40 +435,40 @@ class HGraph extends Component {
             cx: d.cx,
             cy: d.cy,
             textOpacity: 0,
-            r: d.isChild ? 0 : this.props.pointRadius / this.state.zoomFactor,
+            r: d.isChild ? 0 : props.pointRadius / state.zoomFactor,
             opacity: d.isChild ? 0 : 1
           }
         }}
         update={(d, index) => {
-          const { zoomed } = this.state;
-          const radius = this.props.pointRadius / this.state.zoomFactor;
+          const { zoomed } = state;
+          const radius = props.pointRadius / state.zoomFactor;
           return [
             {
-              cx: this.state.suppressTransition ? d.cx : [d.cx],
-              cy: this.state.suppressTransition ? d.cy : [d.cy],
+              cx: state.suppressTransition ? d.cx : [d.cx],
+              cy: state.suppressTransition ? d.cy : [d.cy],
               color: [d.color],
               r: !zoomed && d.isChild ? [1] : d.isChild ? [radius * .75] : [radius],
               opacity: !zoomed && d.isChild ? [0] : [1],
               timing: {
-                duration: this.props.zoomTransitionTime,
+                duration: props.zoomTransitionTime,
                 ease: d.isChild ? easeElastic : easeExp,
                 delay:
-                  !this.state.animatingChildren ? 0 :
+                  !state.animatingChildren ? 0 :
                   (zoomed && !d.isChild) ? 0 :
-                  (zoomed && d.isChild) ? this.props.zoomTransitionTime :
-                  (!zoomed && !d.isChild) ? this.props.zoomTransitionTime :
+                  (zoomed && d.isChild) ? props.zoomTransitionTime :
+                  (!zoomed && !d.isChild) ? props.zoomTransitionTime :
                   (!zoomed && d.isChild) ? 0 : 0
               }
             },
             {
-              textOpacity: this.state.zoomed ? [1] : 0,
+              textOpacity: state.zoomed ? [1] : 0,
               timing: {
-                duration: this.props.zoomTransitionTime,
+                duration: props.zoomTransitionTime,
                 ease: easeExp,
                 delay:
                   (zoomed && !d.isChild) ? 0 :
-                  (zoomed && d.isChild) ? this.props.zoomTransitionTime :
-                  (!zoomed && !d.isChild) ? this.props.zoomTransitionTime :
+                  (zoomed && d.isChild) ? props.zoomTransitionTime :
+                  (!zoomed && !d.isChild) ? props.zoomTransitionTime :
                   (!zoomed && d.isChild) ? 0 : 0
               }
             }
@@ -565,15 +491,15 @@ class HGraph extends Component {
                     </circle>
                     <circle
                       className="polygon__point-hitbox"
-                      r={ this.props.hitboxRadius || state.r }
+                      r={ props.hitboxRadius || state.r }
                       cx={ state.cx }
                       cy={ state.cy }
                       opacity="0"
-                      onClick={ this.handlePointClick(data) }>
+                      onClick={ handlePointClick(data) }>
                     </circle>
                     <Text
                       opacity={ state.textOpacity }
-                      width={ this.props.pointLabelWrapWidth }
+                      width={ props.pointLabelWrapWidth }
                       x={ data.activeCx }
                       y={ data.activeCy }
                       fontSize={ globalState.fontSize }
@@ -593,99 +519,171 @@ class HGraph extends Component {
     )
   }
 
-  render() {
-    return(
-      <div>
-          <svg
-            className="hgraph"
-            width={ this.props.width + this.props.margin.left + this.props.margin.right }
-            height={ this.props.height + this.props.margin.top + this.props.margin.bottom }
-            onClick={ this.handleSvgClick }>
-            <g
-              transform={ "translate(" + ((this.props.width / 2) + this.props.margin.left) + "," + ((this.props.height / 2) + this.props.margin.top) + ")" }>
-              <Animate
-                start={{
-                  path: this.state.path,
-                  zoomFactor: this.state.zoomFactor,
-                  zoomCoords: this.state.zoomCoords,
-                  fontSize: this.props.fontSize / this.state.zoomFactor,
-                  pointRadius: this.props.pointRadius / this.state.zoomFactor
-                }}
-                enter={{
-                  path: this.state.path,
-                  zoomFactor: this.state.zoomFactor,
-                  zoomCoords: this.state.zoomCoords,
-                  fontSize: this.props.fontSize / this.state.zoomFactor,
-                  pointRadius: this.props.pointRadius / this.state.zoomFactor
-                }}
-                update={[
-                  {
-                    d: this.state.suppressTransition ? this.state.path : [this.state.path],
-                    timing: {
-                      duration: this.props.zoomTransitionTime,
-                      ease: this.state.animatingChildren ? easeElastic : easeExp,
-                      delay: this.state.animatingChildren && this.state.zoomed ? this.props.zoomTransitionTime : 0
-                    },
-                    events: {
-                      end() {
-                        this.setState({
-                          animatingChildren: false
-                        });
-                      }
-                    }
+
+  return(
+    <div>
+        <svg
+          className="hgraph"
+          width={ props.width + props.margin.left + props.margin.right }
+          height={ props.height + props.margin.top + props.margin.bottom }
+          onClick={ handleSvgClick }>
+          <g
+            transform={ "translate(" + ((props.width / 2) + props.margin.left) + "," + ((props.height / 2) + props.margin.top) + ")" }>
+            <Animate
+              start={{
+                path: state.path,
+                zoomFactor: state.zoomFactor,
+                zoomCoords: state.zoomCoords,
+                fontSize: props.fontSize / state.zoomFactor,
+                pointRadius: props.pointRadius / state.zoomFactor
+              }}
+              enter={{
+                path: state.path,
+                zoomFactor: state.zoomFactor,
+                zoomCoords: state.zoomCoords,
+                fontSize: props.fontSize / state.zoomFactor,
+                pointRadius: props.pointRadius / state.zoomFactor
+              }}
+              update={[
+                {
+                  d: state.suppressTransition ? state.path : [state.path],
+                  timing: {
+                    duration: props.zoomTransitionTime,
+                    ease: state.animatingChildren ? easeElastic : easeExp,
+                    delay: state.animatingChildren && state.zoomed ? props.zoomTransitionTime : 0
                   },
-                  {
-                    zoomFactor: [this.state.zoomFactor],
-                    zoomCoords: [this.state.zoomCoords],
-                    fontSize: [this.props.fontSize / this.state.zoomFactor],
-                    pointRadius: [this.props.pointRadius / this.state.zoomFactor],
-                    timing: {
-                      duration: this.props.zoomTransitionTime,
-                      ease: easeExp,
-                      delay: this.state.zoomed ? 0 : this.props.zoomTransitionTime
+                  events: {
+                    end() {
+                      setState({
+                        animatingChildren: false
+                      });
                     }
                   }
-                ]}>
-                {(globalState) => {
-                  return (
-                    <g
-                      className="zoom-layer"
-                      transform={ `scale(${ globalState.zoomFactor }) translate(${ -globalState.zoomCoords[0] || 0 }, ${ -globalState.zoomCoords[1] || 0 })` }>
-                      <g className="axis-container">
-                        { this.renderAxes(globalState.fontSize) }
-                      </g>
-                      <g className="path-container">
-                        <path
-                          d={ globalState.d }
-                          fill={ this.props.color }
-                          opacity={ this.props.areaOpacity }
-                        />
-                      </g>
-                      <g className="points-container">
-                        { this.renderPoints(this.state.points, globalState) }
-                      </g>
-                      <g className="score-container">
-                        <Text
-                          x="0"
-                          y="0"
-                          textAnchor="middle"
-                          verticalAnchor="middle"
-                          fontSize={ this.props.scoreFontSize }
-                          fontWeight="bold"
-                          pointerEvents="none"
-                          fill={ this.props.scoreFontColor }>
-                            { this.props.score }
-                        </Text>
-                      </g>
+                },
+                {
+                  zoomFactor: [state.zoomFactor],
+                  zoomCoords: [state.zoomCoords],
+                  fontSize: [props.fontSize / state.zoomFactor],
+                  pointRadius: [props.pointRadius / state.zoomFactor],
+                  timing: {
+                    duration: props.zoomTransitionTime,
+                    ease: easeExp,
+                    delay: state.zoomed ? 0 : props.zoomTransitionTime
+                  }
+                }
+              ]}>
+              {(globalState) => {
+                return (
+                  <g
+                    className="zoom-layer"
+                    transform={ `scale(${ globalState.zoomFactor }) translate(${ -globalState.zoomCoords[0] || 0 }, ${ -globalState.zoomCoords[1] || 0 })` }>
+                    <g className="axis-container">
+                      { renderAxes(globalState.fontSize) }
                     </g>
-                  )
-                }}
-              </Animate>
-            </g>
-          </svg>
-      </div>
-    )
-  }
+                    <g className="path-container">
+                      <path
+                        d={ globalState.d }
+                        fill={ props.color }
+                        opacity={ props.areaOpacity }
+                      />
+                    </g>
+                    <g className="points-container">
+                      { renderPoints(state.points, globalState) }
+                    </g>
+                    <g className="score-container">
+                      <Text
+                        x="0"
+                        y="0"
+                        textAnchor="middle"
+                        verticalAnchor="middle"
+                        fontSize={ props.scoreFontSize }
+                        fontWeight="bold"
+                        pointerEvents="none"
+                        fill={ props.scoreFontColor }>
+                          { props.score }
+                      </Text>
+                    </g>
+                  </g>
+                )
+              }}
+            </Animate>
+          </g>
+        </svg>
+    </div>
+  )
 }
+
+HGraph.propTypes = {
+  data: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    label: PropTypes.string.isRequired,
+    value: PropTypes.number.isRequired,
+    healthyMin: PropTypes.number.isRequired,
+    healthyMax: PropTypes.number.isRequired,
+    absoluteMin: PropTypes.number.isRequired,
+    absoluteMax: PropTypes.number.isRequired,
+    unitLabel: PropTypes.string.isRequired,
+    children: PropTypes.array
+  })).isRequired,
+  score: PropTypes.number,
+  color: PropTypes.string,
+  width: PropTypes.number,
+  height: PropTypes.number,
+  margin: PropTypes.shape({
+    top: PropTypes.number,
+    right: PropTypes.number,
+    bottom: PropTypes.number,
+    left: PropTypes.number
+  }),
+  thresholdMin: PropTypes.number,
+  thresholdMax: PropTypes.number,
+  donutHoleFactor: PropTypes.number,
+  healthyRangeFillColor: PropTypes.string,
+  fontSize: PropTypes.number,
+  fontColor: PropTypes.string,
+  showAxisLabel: PropTypes.bool,
+  axisLabelOffset: PropTypes.number,
+  axisLabelWrapWidth: PropTypes.number,
+  areaOpacity: PropTypes.number,
+  pointRadius: PropTypes.number,
+  pointLabelOffset: PropTypes.number,
+  pointLabelWrapWidth: PropTypes.number,
+  hitboxRadius: PropTypes.number,
+  showScore: PropTypes.bool,
+  scoreFontSize: PropTypes.number,
+  scoreFontColor: PropTypes.string,
+  zoomFactor: PropTypes.number,
+  zoomTransitionTime: PropTypes.number,
+  zoomOnPointClick: PropTypes.bool,
+  onPointClick: PropTypes.func,
+};
+
+HGraph.defaultProps = {
+  width: 600,
+  height: 600,
+  color: '#616363',
+  margin: { top: 70, right: 100, bottom: 70, left: 100 },
+  thresholdMin: .25,
+  thresholdMax: .75,
+  donutHoleFactor: .4,
+  healthyRangeFillColor: '#98bd8e',
+  fontSize: 16,
+  fontColor: '#000',
+  showAxisLabel: true,
+  axisLabelOffset: 12,
+  axisLabelWrapWidth: 120,
+  areaOpacity: 0.25,
+  pointRadius: 10,
+  pointLabelOffset: 8,
+  pointLabelWrapWidth: null,
+  showScore: true,
+  scoreFontSize: 120,
+  scoreFontColor: '#000',
+  zoomFactor: 2.25,
+  zoomTransitionTime: 750,
+  zoomOnPointClick: true,
+}
+
+
 
 export default HGraph;
